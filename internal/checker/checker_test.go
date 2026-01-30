@@ -31,7 +31,6 @@ func TestMain(m *testing.M) {
 	testutils.ResetTestConfig()
 
 	// 使用 os.Exit 而不是直接返回
-	fmt.Printf("测试完成，退出码: %d\n", code)
 	os.Exit(code)
 }
 
@@ -42,21 +41,34 @@ func TestMain(m *testing.M) {
 func TestNewRuleChecker(t *testing.T) {
 	cfg := testutils.GetTestConfig(t)
 
-	t.Run("valid_creation", func(t *testing.T) {
-		checker, err := NewRuleChecker("test", "function", cfg)
-		require.NoError(t, err)
-		assert.NotNil(t, checker)
-		assert.Equal(t, "test", checker.name)
-		assert.Equal(t, "function", checker.category)
-		assert.NotNil(t, checker.rules)
-		assert.Empty(t, checker.issues)
-	})
+	cases := []struct {
+		name    string
+		inName  string
+		inCat   string
+		cfg     *config.Config
+		wantErr bool
+	}{
+		{name: "valid_creation", inName: "test", inCat: "function", cfg: cfg, wantErr: false},
+		{name: "nil_config", inName: "test", inCat: "function", cfg: nil, wantErr: true},
+	}
 
-	t.Run("nil_config", func(t *testing.T) {
-		// 由于 NewRuleChecker 在 nil config 时会 fatal，我们跳过这个测试
-		// 这里只验证函数存在
-		assert.NotNil(t, NewRuleChecker)
-	})
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			chk, err := NewRuleChecker(tc.inName, tc.inCat, tc.cfg)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, chk)
+			assert.Equal(t, tc.inName, chk.name)
+			assert.Equal(t, tc.inCat, chk.category)
+			assert.NotNil(t, chk.rules)
+			assert.Empty(t, chk.issues)
+		})
+	}
 }
 
 func TestRuleChecker_BasicMethods(t *testing.T) {
@@ -94,60 +106,35 @@ func TestRuleChecker_BasicMethods(t *testing.T) {
 func TestRuleChecker_LoadRulesFromConfig(t *testing.T) {
 	cfg := testutils.GetTestConfig(t)
 
-	t.Run("function_rules", func(t *testing.T) {
-		checker, err := NewRuleChecker("test", "function", cfg)
-		require.NoError(t, err)
-		rules := checker.GetRules()
-		assert.NotEmpty(t, rules)
+	cases := []struct {
+		name      string
+		category  string
+		expectAny bool
+	}{
+		{name: "function_rules", category: "function", expectAny: true},
+		{name: "datatype_rules", category: "datatype", expectAny: true},
+		{name: "syntax_rules", category: "syntax", expectAny: true},
+		{name: "charset_rules", category: "charset", expectAny: true},
+		{name: "nonexistent_category", category: "nonexistent", expectAny: false},
+	}
 
-		// 验证规则类别
-		for _, rule := range rules {
-			assert.Equal(t, "function", rule.Category)
-		}
-	})
-
-	t.Run("datatype_rules", func(t *testing.T) {
-		checker, err := NewRuleChecker("test", "datatype", cfg)
-		require.NoError(t, err)
-		rules := checker.GetRules()
-		assert.NotEmpty(t, rules)
-
-		// 验证规则类别
-		for _, rule := range rules {
-			assert.Equal(t, "datatype", rule.Category)
-		}
-	})
-
-	t.Run("syntax_rules", func(t *testing.T) {
-		checker, err := NewRuleChecker("test", "syntax", cfg)
-		require.NoError(t, err)
-		rules := checker.GetRules()
-		assert.NotEmpty(t, rules)
-
-		// 验证规则类别
-		for _, rule := range rules {
-			assert.Equal(t, "syntax", rule.Category)
-		}
-	})
-
-	t.Run("charset_rules", func(t *testing.T) {
-		checker, err := NewRuleChecker("test", "charset", cfg)
-		require.NoError(t, err)
-		rules := checker.GetRules()
-		assert.NotEmpty(t, rules)
-
-		// 验证规则类别
-		for _, rule := range rules {
-			assert.Equal(t, "charset", rule.Category)
-		}
-	})
-
-	t.Run("nonexistent_category", func(t *testing.T) {
-		checker, err := NewRuleChecker("test", "nonexistent", cfg)
-		require.NoError(t, err)
-		rules := checker.GetRules()
-		assert.Empty(t, rules)
-	})
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			checker, err := NewRuleChecker("test", tc.category, cfg)
+			require.NoError(t, err)
+			rules := checker.GetRules()
+			if tc.expectAny {
+				assert.NotEmpty(t, rules)
+				for _, rule := range rules {
+					assert.Equal(t, tc.category, rule.Category)
+				}
+			} else {
+				assert.Empty(t, rules)
+			}
+		})
+	}
 }
 
 func TestRuleChecker_ConcurrentSafety(t *testing.T) {

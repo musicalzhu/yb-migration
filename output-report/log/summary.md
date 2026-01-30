@@ -2,7 +2,7 @@
 
 ## 摘要
 
-- **来源**: C:\微云同步助手\1469866358\WorkBench\go\yb-migration\testdata\general_log_example.log
+- **来源**: c:\微云同步助手\1469866358\WorkBench\go\yb-migration\testdata\general_log_example.log
 - **SQL 语句**:
   ```sql
   SELECT * FROM users;

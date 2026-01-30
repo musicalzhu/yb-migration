@@ -29,6 +29,13 @@ type Checker interface {
 	Reset()
 }
 
+// 并发语义说明:
+// - `Check` 在遍历 AST 时会在单个 goroutine 中调用每个检查器的 `Inspect` 方法，
+//   因此 `Inspect` 的实现通常不需要为并发调用提供额外保护（在同一次遍历中是串行调用）。
+// - 但外部代码可能并发读取检查器的结果（`Issues()`）或者并发调用 `AddIssue`/`AddIssues`，
+//   因此建议检查器实现提供对问题集合的并发保护。`RuleChecker` 已通过内部的 `sync.RWMutex`
+//   保证 `AddIssue`/`AddIssues`/`Issues`/`Reset` 在并发场景下是安全的。
+
 // RuleChecker 规则检查器统一实现
 // 提供完整的检查器功能：规则管理、问题收集、状态重置
 // 支持不同类别的SQL兼容性检查，是所有检查器的基础实现
@@ -37,7 +44,7 @@ type RuleChecker struct {
 	category string                 // 规则类别：指定检查器处理的规则类型（datatype/function/syntax/charset）
 	rules    map[string]config.Rule // 规则映射：存储从配置文件加载的规则，key为Pattern的大写形式
 	issues   []model.Issue          // 发现的问题列表
-	mu       sync.RWMutex           // 读写锁：保护并发访问issues
+	mu       sync.RWMutex           // 读写锁：保护并发访问 `issues` 字段，保证对问题集合的并发读写安全
 }
 
 // NewRuleChecker 创建规则检查器（支持依赖注入）
@@ -90,6 +97,8 @@ func (r *RuleChecker) AddIssue(issue model.Issue) {
 // Issues 返回发现的问题（只读，请勿修改返回的切片）
 // 返回:
 //   - []model.Issue: 问题列表，如果没有问题返回nil
+//
+// 并发安全: 该方法使用读锁保护 `issues`，并发调用是安全的。
 func (r *RuleChecker) Issues() []model.Issue {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -97,6 +106,7 @@ func (r *RuleChecker) Issues() []model.Issue {
 }
 
 // Reset 重置检查器状态
+// 并发安全: 使用写锁保证在并发场景下清空 `issues` 的原子性。
 func (r *RuleChecker) Reset() {
 	r.mu.Lock()
 	defer r.mu.Unlock()

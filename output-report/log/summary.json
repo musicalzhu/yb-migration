@@ -11,6 +11,6 @@
       }
     }
   ],
-  "source": "C:\\微云同步助手\\1469866358\\WorkBench\\go\\yb-migration\\testdata\\general_log_example.log",
+  "source": "c:\\微云同步助手\\1469866358\\WorkBench\\go\\yb-migration\\testdata\\general_log_example.log",
   "transformed_sql": "SELECT * FROM `users`;\nUPDATE `users` SET `name`=_UTF8MB4'test' WHERE `id`=1;\nSELECT COALESCE(`orderid`, _UTF8MB4'N/A') FROM `orders`"
 }
