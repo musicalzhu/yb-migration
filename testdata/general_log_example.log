@@ -1,0 +1,5 @@
+2023-12-23T08:00:01.234567Z     1 Query     SELECT * FROM users
+2023-12-23T08:00:02.234567Z     2 Query     UPDATE users SET name = 'test' WHERE id = 1
+2023-12-23T08:00:03.234567Z     3 Connect   root@localhost on
+2023-12-23T08:00:04.234567Z     1 Query     SELECT IFNULL(orderid, 'N/A') FROM orders
+2023-12-23T08:00:05.234567Z     2 Quit

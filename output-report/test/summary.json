@@ -1,0 +1,25 @@
+{
+  "sql": "-- sample SQL for tests\r\nCREATE TABLE users (\r\n  id INT AUTO_INCREMENT PRIMARY KEY,\r\n  name VARCHAR(255),\r\n  tags JSON\r\n);\r\n\r\nSELECT GROUP_CONCAT(name) FROM users;\r\n",
+  "issues": [
+    {
+      "checker": "FunctionChecker",
+      "message": "函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)",
+      "autofix": {
+        "available": true,
+        "action": "replace_function",
+        "code": "GROUP_CONCAT -\u003e STRING_AGG"
+      }
+    },
+    {
+      "checker": "SyntaxChecker",
+      "message": "语法 AUTO_INCREMENT: MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL (建议: SERIAL)",
+      "autofix": {
+        "available": true,
+        "action": "replace_constraint",
+        "code": "AUTO_INCREMENT -\u003e SERIAL"
+      }
+    }
+  ],
+  "source": "C:\\微云同步助手\\1469866358\\WorkBench\\go\\yb-migration\\testdata\\mysql_queries.sql",
+  "transformed_sql": "CREATE TABLE `users` (`id` INT PRIMARY KEY,`name` VARCHAR(255),`tags` JSON);\nSELECT STRING_AGG(`name`, ',') FROM `users`"
+}

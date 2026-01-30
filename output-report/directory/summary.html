@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SQL 分析报告</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .summary { background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .issue { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .meta { color: #6c757d; font-size: 0.9em; }
+        code { font-family: 'Courier New', Courier, monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SQL 分析报告</h1>
+        
+        <div class="summary">
+            <h2>分析概览</h2>
+            <p><strong>来源:</strong> C:\微云同步助手\1469866358\WorkBench\go\yb-migration\testdata</p>
+            <p><strong>问题数量:</strong> 3</p>
+            <p class="meta">生成时间: 2026-01-30 16:38:40</p>
+        </div>
+
+        
+        <div class="issues">
+            <h2>发现的问题 (3)</h2>
+            
+            <div class="issue">
+                <h3>问题 #1: FunctionChecker</h3>
+                <p>函数 IFNULL: MySQL IFNULL 函数转换为标准 SQL COALESCE (建议: COALESCE)</p>
+                
+                
+                <p><strong>自动修复:</strong> 可用
+                    
+                    <br>操作: replace_function
+                    
+                </p>
+                
+                <p><strong>修复代码:</strong></p>
+                <pre><code>IFNULL -&gt; COALESCE</code></pre>
+                
+                
+            </div>
+            
+            <div class="issue">
+                <h3>问题 #2: FunctionChecker</h3>
+                <p>函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)</p>
+                
+                
+                <p><strong>自动修复:</strong> 可用
+                    
+                    <br>操作: replace_function
+                    
+                </p>
+                
+                <p><strong>修复代码:</strong></p>
+                <pre><code>GROUP_CONCAT -&gt; STRING_AGG</code></pre>
+                
+                
+            </div>
+            
+            <div class="issue">
+                <h3>问题 #3: SyntaxChecker</h3>
+                <p>语法 AUTO_INCREMENT: MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL (建议: SERIAL)</p>
+                
+                
+                <p><strong>自动修复:</strong> 可用
+                    
+                    <br>操作: replace_constraint
+                    
+                </p>
+                
+                <p><strong>修复代码:</strong></p>
+                <pre><code>AUTO_INCREMENT -&gt; SERIAL</code></pre>
+                
+                
+            </div>
+            
+        </div>
+        
+    </div>
+</body>
+</html>

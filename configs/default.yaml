@@ -1,0 +1,150 @@
+rules:
+  # 聚合函数规则
+  - name: "GROUP_CONCAT_to_STRING_AGG"
+    description: "MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG"
+    category: "function"
+    when:
+      pattern: "GROUP_CONCAT"
+    then:
+      action: "replace_function"
+      target: "STRING_AGG"
+      mapping:
+        - from: "GROUP_CONCAT(${expr})"
+          to: "STRING_AGG(${expr}, ',')"
+        - from: "GROUP_CONCAT(${expr} SEPARATOR ${sep})"
+          to: "STRING_AGG(${expr}, ${sep})"
+
+  # NULL 处理函数规则
+  - name: "IFNULL_to_COALESCE"
+    description: "MySQL IFNULL 函数转换为标准 SQL COALESCE"
+    category: "function"
+    when:
+      pattern: "IFNULL"
+    then:
+      action: "replace_function"
+      target: "COALESCE"
+      mapping:
+        - from: "IFNULL(${expr1}, ${expr2})"
+          to: "COALESCE(${expr1}, ${expr2})"
+
+  # 时间函数规则
+  - name: "NOW_to_CURRENT_TIMESTAMP"
+    description: "MySQL NOW() 函数转换为高精度时间戳"
+    category: "function"
+    when:
+      pattern: "NOW"
+    then:
+      action: "replace_function"
+      target: "CURRENT_TIMESTAMP"
+      mapping:
+        - from: "NOW()"
+          to: "CURRENT_TIMESTAMP(6)"
+        - from: "NOW(${precision})"
+          to: "CURRENT_TIMESTAMP(${precision})"
+
+  # 数据类型转换规则
+  - name: "TINYINT_to_SMALLINT"
+    description: "MySQL TINYINT 转换为标准 SMALLINT"
+    category: "datatype"
+    when:
+      pattern: "TINYINT"
+    then:
+      action: "replace_type"
+      target: "SMALLINT"
+      mapping:
+        - from: "TINYINT"
+          to: "SMALLINT"
+        - from: "TINYINT(${width})"
+          to: "SMALLINT"
+
+  # 自增主键规则
+  - name: "AUTO_INCREMENT_to_SERIAL"
+    description: "MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL"
+    category: "syntax"
+    when:
+      pattern: "AUTO_INCREMENT"
+    then:
+      action: "replace_constraint"
+      target: "SERIAL"
+      mapping:
+        - from: "${col_name} ${data_type} AUTO_INCREMENT PRIMARY KEY"
+          to: "${col_name} SERIAL PRIMARY KEY"
+        - from: "${col_name} ${data_type} AUTO_INCREMENT"
+          to: "${col_name} SERIAL"
+
+  # 引号转换规则
+  - name: "BACKTICK_to_DOUBLE_QUOTE"
+    description: "MySQL 反引号转换为标准双引号"
+    category: "syntax"
+    when:
+      pattern: "`"
+    then:
+      action: "replace_quotes"
+      target: "\""
+      mapping:
+        - from: "`${identifier}`"
+          to: "\"${identifier}\""
+
+  # LIMIT 语法规则
+  - name: "LIMIT_to_OFFSET_FETCH"
+    description: "MySQL LIMIT 转换为标准 SQL OFFSET FETCH"
+    category: "syntax"
+    when:
+      pattern: "LIMIT"
+    then:
+      action: "replace_clause"
+      target: "OFFSET_FETCH"
+      mapping:
+        - from: "LIMIT ${count}"
+          to: "FETCH NEXT ${count} ROWS ONLY"
+        - from: "LIMIT ${offset}, ${count}"
+          to: "OFFSET ${offset} ROWS FETCH NEXT ${count} ROWS ONLY"
+
+  # 字符集转换规则
+  - name: "utf8_to_utf8mb4"
+    description: "MySQL utf8 字符集转换为 utf8mb4"
+    category: "charset"
+    when:
+      pattern: "utf8"
+    then:
+      action: "replace_charset"
+      target: "utf8mb4"
+      mapping:
+        - from: "utf8"
+          to: "utf8mb4"
+
+  - name: "utf8_bin_to_utf8mb4_general_ci"
+    description: "MySQL utf8_bin 排序规则转换为 utf8mb4_general_ci"
+    category: "charset"
+    when:
+      pattern: "utf8_bin"
+    then:
+      action: "replace_collation"
+      target: "utf8mb4_general_ci"
+      mapping:
+        - from: "utf8_bin"
+          to: "utf8mb4_general_ci"
+
+  - name: "utf8mb4_0900_ai_ci_to_utf8mb4_general_ci"
+    description: "MySQL utf8mb4_0900_ai_ci 排序规则转换为 utf8mb4_general_ci"
+    category: "charset"
+    when:
+      pattern: "utf8mb4_0900_ai_ci"
+    then:
+      action: "replace_collation"
+      target: "utf8mb4_general_ci"
+      mapping:
+        - from: "utf8mb4_0900_ai_ci"
+          to: "utf8mb4_general_ci"
+
+  - name: "utf8mb4_0900_as_cs_to_utf8mb4_bin"
+    description: "MySQL utf8mb4_0900_as_cs 排序规则转换为 utf8mb4_bin"
+    category: "charset"
+    when:
+      pattern: "utf8mb4_0900_as_cs"
+    then:
+      action: "replace_collation"
+      target: "utf8mb4_bin"
+      mapping:
+        - from: "utf8mb4_0900_as_cs"
+          to: "utf8mb4_bin"

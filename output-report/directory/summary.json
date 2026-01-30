@@ -1,0 +1,33 @@
+{
+  "sql": "",
+  "issues": [
+    {
+      "checker": "FunctionChecker",
+      "message": "函数 IFNULL: MySQL IFNULL 函数转换为标准 SQL COALESCE (建议: COALESCE)",
+      "autofix": {
+        "available": true,
+        "action": "replace_function",
+        "code": "IFNULL -\u003e COALESCE"
+      }
+    },
+    {
+      "checker": "FunctionChecker",
+      "message": "函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)",
+      "autofix": {
+        "available": true,
+        "action": "replace_function",
+        "code": "GROUP_CONCAT -\u003e STRING_AGG"
+      }
+    },
+    {
+      "checker": "SyntaxChecker",
+      "message": "语法 AUTO_INCREMENT: MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL (建议: SERIAL)",
+      "autofix": {
+        "available": true,
+        "action": "replace_constraint",
+        "code": "AUTO_INCREMENT -\u003e SERIAL"
+      }
+    }
+  ],
+  "source": "C:\\微云同步助手\\1469866358\\WorkBench\\go\\yb-migration\\testdata"
+}

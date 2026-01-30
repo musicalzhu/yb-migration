@@ -1,0 +1,16 @@
+{
+  "sql": "SELECT * FROM users;\nUPDATE users SET name = 'test' WHERE id = 1;\nSELECT IFNULL(orderid, 'N/A') FROM orders;\n",
+  "issues": [
+    {
+      "checker": "FunctionChecker",
+      "message": "函数 IFNULL: MySQL IFNULL 函数转换为标准 SQL COALESCE (建议: COALESCE)",
+      "autofix": {
+        "available": true,
+        "action": "replace_function",
+        "code": "IFNULL -\u003e COALESCE"
+      }
+    }
+  ],
+  "source": "C:\\微云同步助手\\1469866358\\WorkBench\\go\\yb-migration\\testdata\\general_log_example.log",
+  "transformed_sql": "SELECT * FROM `users`;\nUPDATE `users` SET `name`=_UTF8MB4'test' WHERE `id`=1;\nSELECT COALESCE(`orderid`, _UTF8MB4'N/A') FROM `orders`"
+}

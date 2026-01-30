@@ -1,0 +1,99 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  GOPROXY: https://goproxy.cn,direct
+  GO111MODULE: "on"
+  CGO_ENABLED: 0
+
+# Cache Go modules and build cache
+cache:
+  paths:
+    - .cache
+    - .gocache
+
+before_script:
+  - go version
+  - go env
+  - go mod download
+
+# Unit tests
+unit-test:
+  stage: test
+  script:
+    - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+  artifacts:
+    paths:
+      - coverage.txt
+    expire_in: 1 week
+  only:
+    - merge_requests
+    - main
+
+# Integration tests
+integration-test:
+  stage: test
+  script:
+    - go test -v -tags=integration -race ./...
+  only:
+    - merge_requests
+    - main
+
+# Build the application
+build:
+  stage: build
+  script:
+    - mkdir -p bin
+    - go build -o bin/ybMigration ./cmd/analyzer
+    - go build -o bin/ybMigration-autofix ./cmd/autofix
+  artifacts:
+    paths:
+      - bin/
+    expire_in: 1 week
+  only:
+    - tags
+    - main
+
+# Run linters
+lint:
+  stage: test
+  image: golangci/golangci-lint:latest
+  script:
+    - golangci-lint run --timeout 5m -v ./...
+  only:
+    - merge_requests
+    - main
+
+# Run benchmarks
+benchmark:
+  stage: test
+  script:
+    - go test -bench=. -benchmem -run=^$ ./...
+  only:
+    - schedules
+
+# Deploy to staging
+deploy-staging:
+  stage: deploy
+  script:
+    - echo "Deploying to staging environment..."
+    # Add your deployment script here
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+    - main
+
+# Deploy to production
+deploy-prod:
+  stage: deploy
+  script:
+    - echo "Deploying to production..."
+    # Add your deployment script here
+  environment:
+    name: production
+    url: https://example.com
+  only:
+    - tags

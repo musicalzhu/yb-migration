@@ -1,0 +1,6 @@
+{
+  "sql": "",
+  "issues": null,
+  "error": "创建分析器失败: 检查器列表不能为空",
+  "source": "../testdata/mysql_queries.sql"
+}
