@@ -36,15 +36,15 @@ func (g *HTMLGenerator) Write(path string, result model.AnalysisResult) error {
 	}
 
 	// 创建输出文件
-    file, err := os.Create(path)
-    if err != nil {
-        return fmt.Errorf("创建文件失败: %w", err)
-    }
-    defer func() {
-        if err := file.Close(); err != nil {
-            fmt.Fprintf(os.Stderr, "关闭文件 %s 失败: %v\n", path, err)
-        }
-    }()
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %w", err)
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "关闭文件 %s 失败: %v\n", path, err)
+		}
+	}()
 
 	// 执行模板并写入文件
 	if err := tmpl.Execute(file, data); err != nil {

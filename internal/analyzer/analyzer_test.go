@@ -86,7 +86,7 @@ func TestAnalyzeSQLWithOutput(t *testing.T) {
 // TestSQLAnalyzer_AnalyzeSQL 测试SQL分析功能
 func TestSQLAnalyzer_AnalyzeSQL(t *testing.T) {
 	sqlParser := sqlparser.NewSQLParser()
-	
+
 	// 创建分析器工厂
 	factory, err := NewAnalyzerFactory("")
 	require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestSQLAnalyzer_AnalyzeSQL(t *testing.T) {
 		sql := "CREATE TABLE users (id INT, name VARCHAR(255))"
 		result, err := analyzer.AnalyzeSQL(sql, "test")
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, sql, result.SQL)
 		assert.Equal(t, "test", result.Source)
 		assert.NotEmpty(t, result.TransformedSQL)
@@ -113,11 +113,11 @@ func TestSQLAnalyzer_AnalyzeSQL(t *testing.T) {
 		sql := "CREATE TABLE users (id TINYINT, name VARCHAR(255))"
 		result, err := analyzer.AnalyzeSQL(sql, "test")
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, sql, result.SQL)
 		assert.Equal(t, "test", result.Source)
 		assert.NotEmpty(t, result.TransformedSQL)
-		
+
 		// 应该检测到TINYINT数据类型兼容性问题
 		assert.NotEmpty(t, result.Issues)
 	})
@@ -126,11 +126,11 @@ func TestSQLAnalyzer_AnalyzeSQL(t *testing.T) {
 		sql := "SELECT GROUP_CONCAT(name) FROM users"
 		result, err := analyzer.AnalyzeSQL(sql, "test")
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, sql, result.SQL)
 		assert.Equal(t, "test", result.Source)
 		assert.NotEmpty(t, result.TransformedSQL)
-		
+
 		// 应该检测到GROUP_CONCAT函数兼容性问题
 		assert.NotEmpty(t, result.Issues)
 	})
@@ -139,7 +139,7 @@ func TestSQLAnalyzer_AnalyzeSQL(t *testing.T) {
 		sql := ""
 		result, err := analyzer.AnalyzeSQL(sql, "test")
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, sql, result.SQL)
 		assert.Equal(t, "test", result.Source)
 		assert.NotEmpty(t, result.Error)
@@ -150,7 +150,7 @@ func TestSQLAnalyzer_AnalyzeSQL(t *testing.T) {
 		sql := "INVALID SQL STATEMENT"
 		result, err := analyzer.AnalyzeSQL(sql, "test")
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, sql, result.SQL)
 		assert.Equal(t, "test", result.Source)
 		assert.NotEmpty(t, result.Error)
@@ -182,7 +182,7 @@ func TestAnalyzerFactory_CreateCheckers(t *testing.T) {
 		checkers, err := factory.CreateCheckers("datatype")
 		require.NoError(t, err)
 		assert.Len(t, checkers, 1)
-		
+
 		// 使用类型断言验证检查器类型
 		_, ok := checkers[0].(*checker.DataTypeChecker)
 		assert.True(t, ok, "应该创建DataTypeChecker")
@@ -192,7 +192,7 @@ func TestAnalyzerFactory_CreateCheckers(t *testing.T) {
 		checkers, err := factory.CreateCheckers("function")
 		require.NoError(t, err)
 		assert.Len(t, checkers, 1)
-		
+
 		// 使用类型断言验证检查器类型
 		_, ok := checkers[0].(*checker.FunctionChecker)
 		assert.True(t, ok, "应该创建FunctionChecker")
@@ -221,7 +221,7 @@ func TestAnalyzerFactory_CreateCheckers(t *testing.T) {
 // TestAnalyzeFile 测试文件分析功能
 func TestAnalyzeFile(t *testing.T) {
 	sqlParser := sqlparser.NewSQLParser()
-	
+
 	// 创建分析器工厂
 	factory, err := NewAnalyzerFactory("")
 	require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestAnalyzeFile(t *testing.T) {
 		testDataPath := "../../testdata/mysql_queries.sql"
 		result, err := AnalyzeFile(testDataPath, sqlParser, checkers)
 		require.NoError(t, err)
-		
+
 		assert.NotEmpty(t, result.Source)
 		assert.Empty(t, result.Error)
 		// 文件包含JSON和GROUP_CONCAT，应该检测到问题
@@ -245,7 +245,7 @@ func TestAnalyzeFile(t *testing.T) {
 	t.Run("analyze_nonexistent_file", func(t *testing.T) {
 		_, err := AnalyzeFile("nonexistent.sql", sqlParser, checkers)
 		require.Error(t, err) // AnalyzeFile对于不存在的文件确实返回错误
-		
+
 		// 当返回错误时，result是零值结构体，Error字段为空是正常的
 		assert.Contains(t, err.Error(), "读取SQL文件失败")
 	})
@@ -254,7 +254,7 @@ func TestAnalyzeFile(t *testing.T) {
 // TestAnalyzeInput 测试通用输入分析功能
 func TestAnalyzeInput(t *testing.T) {
 	sqlParser := sqlparser.NewSQLParser()
-	
+
 	// 创建分析器工厂
 	factory, err := NewAnalyzerFactory("")
 	require.NoError(t, err)
@@ -267,7 +267,7 @@ func TestAnalyzeInput(t *testing.T) {
 		sql := "CREATE TABLE test (id TINYINT, name VARCHAR(255))"
 		result, err := AnalyzeInput(sql, sqlParser, checkers)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, sql, result.SQL)
 		assert.Equal(t, "input_string", result.Source)
 		assert.NotEmpty(t, result.Issues) // TINYINT应该被检测到
@@ -276,7 +276,7 @@ func TestAnalyzeInput(t *testing.T) {
 	t.Run("analyze_unsupported_type", func(t *testing.T) {
 		result, err := AnalyzeInput(123, sqlParser, checkers)
 		require.Error(t, err) // AnalyzeInput对于不支持类型确实返回错误
-		
+
 		assert.NotEmpty(t, result.Error)
 		assert.Contains(t, result.Error, "不支持的输入类型")
 		assert.Contains(t, err.Error(), "不支持的输入类型")

@@ -7,18 +7,21 @@ import (
 
 	pparser "github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
+
 	// 空白导入 test_driver 是为了兼容 TiDB 的解析器实现。
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 )
 
 // SqlParser 定义 SQL 解析器接口
-//revive:disable:var-naming
 // SqlParser 定义 SQL 解析器接口
 // 注意：类型名保持 `SqlParser` 以兼容现有代码调用。
+//
+//revive:disable:var-naming
 type SqlParser interface {
 	// ParseSQL 解析 SQL 语句，返回 AST 节点
 	ParseSQL(sql string) ([]ast.StmtNode, error)
 }
+
 //revive:enable:var-naming
 
 // SQLParser 实现 Parser 接口
