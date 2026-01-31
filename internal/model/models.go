@@ -1,3 +1,5 @@
+// Package model 提供分析结果与报告相关的数据模型。
+// 包含 `Issue`, `AnalysisResult`, `Report` 等类型，用于分析和报告生成流程之间的数据传递。
 package model
 
 import (

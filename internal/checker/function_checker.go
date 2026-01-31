@@ -19,6 +19,7 @@ import (
 //   - 生成兼容性报告
 //   - 与AST规则引擎协同工作
 
+// FunctionChecker 用于检测和处理 MySQL 不兼容的函数调用，嵌入 `RuleChecker`。
 type FunctionChecker struct {
 	*RuleChecker
 }
@@ -86,7 +87,7 @@ func (f *FunctionChecker) Inspect(n ast.Node) (w ast.Node, skipChildren bool) {
 // 返回值:
 //   - ast.Node: 转换后的节点
 //   - bool: 是否跳过子节点
-func (f *FunctionChecker) handleFunctionNode(node ast.Node, funcName, funcType string) (ast.Node, bool) {
+func (f *FunctionChecker) handleFunctionNode(node ast.Node, funcName string, _ string) (ast.Node, bool) {
 	rules := f.GetRules()
 
 	if rule, exists := rules[funcName]; exists {

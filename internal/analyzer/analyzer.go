@@ -1,3 +1,5 @@
+// Package analyzer 将输入解析为 SQL 文本并调用 SQL 解析器与检查器进行分析。
+// 支持文件、目录和日志输入类型，并根据文件类型分派相应的解析器。
 package analyzer
 
 import (
@@ -152,25 +154,25 @@ func SaveTransformedSQLToFile(result model.AnalysisResult, outputPath string) er
 // 分析器工厂
 // ============================================================================
 
-// AnalyzerFactory 分析器工厂
-type AnalyzerFactory struct {
+// Factory 分析器工厂。保留原始名称 AnalyzerFactory 可在历史记录中参考。
+type Factory struct {
 	config *config.Config
 }
 
 // NewAnalyzerFactory 创建分析器工厂
-func NewAnalyzerFactory(configPath string) (*AnalyzerFactory, error) {
+func NewAnalyzerFactory(configPath string) (*Factory, error) {
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("加载配置失败: %w", err)
 	}
 
-	return &AnalyzerFactory{
+	return &Factory{
 		config: cfg,
 	}, nil
 }
 
 // CreateCheckers 创建检查器列表
-func (f *AnalyzerFactory) CreateCheckers(categories ...string) ([]checker.Checker, error) {
+func (f *Factory) CreateCheckers(categories ...string) ([]checker.Checker, error) {
 	var checkers []checker.Checker
 
 	// 如果未指定类别，返回空切片（表示不启用任何检查器）
@@ -213,7 +215,7 @@ func (f *AnalyzerFactory) CreateCheckers(categories ...string) ([]checker.Checke
 }
 
 // CreateStringAnalyzer 创建字符串分析器
-func (f *AnalyzerFactory) CreateStringAnalyzer(categories ...string) (*SQLAnalyzer, error) {
+func (f *Factory) CreateStringAnalyzer(categories ...string) (*SQLAnalyzer, error) {
 	checkers, err := f.CreateCheckers(categories...)
 	if err != nil {
 		return nil, err
@@ -223,7 +225,7 @@ func (f *AnalyzerFactory) CreateStringAnalyzer(categories ...string) (*SQLAnalyz
 }
 
 // CreateFileAnalyzer 创建文件分析器
-func (f *AnalyzerFactory) CreateFileAnalyzer(categories ...string) (*SQLAnalyzer, error) {
+func (f *Factory) CreateFileAnalyzer(categories ...string) (*SQLAnalyzer, error) {
 	checkers, err := f.CreateCheckers(categories...)
 	if err != nil {
 		return nil, err
@@ -237,7 +239,7 @@ func (f *AnalyzerFactory) CreateFileAnalyzer(categories ...string) (*SQLAnalyzer
 // ============================================================================
 
 // NewDefaultAnalyzerFactory 创建默认分析器工厂
-func NewDefaultAnalyzerFactory() (*AnalyzerFactory, error) {
+func NewDefaultAnalyzerFactory() (*Factory, error) {
 	return NewAnalyzerFactory("")
 }
 

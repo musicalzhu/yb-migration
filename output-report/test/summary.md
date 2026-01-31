@@ -2,7 +2,7 @@
 
 ## 摘要
 
-- **来源**: c:\微云同步助手\1469866358\WorkBench\go\yb-migration\testdata\mysql_queries.sql
+- **来源**: C:\微云同步助手\1469866358\WorkBench\go\yb-migration\testdata\mysql_queries.sql
 - **SQL 语句**:
   ```sql
   -- sample SQL for tests

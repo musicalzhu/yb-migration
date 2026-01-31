@@ -1,3 +1,5 @@
+// Package inputparser 提供对不同输入类型（如 SQL 文件、MySQL general log 等）的解析器实现。
+// 各解析器负责将原始输入转换为可供分析的 SQL 文本。
 package inputparser
 
 import (
@@ -78,7 +80,11 @@ func (p *GeneralLogFileParser) ParseFile(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("打开文件 %s 失败: %w", path, err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "关闭文件 %s 失败: %v\n", path, err)
+		}
+	}()
 
 	return p.parseGeneralLog(file)
 }

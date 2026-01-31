@@ -396,7 +396,7 @@ func (r *RuleChecker) replaceConstraint(node ast.Node, rule config.Rule) ast.Nod
 }
 
 // replaceQuotes 替换引号
-func (r *RuleChecker) replaceQuotes(node ast.Node, rule config.Rule) ast.Node {
+func (r *RuleChecker) replaceQuotes(node ast.Node, _ config.Rule) ast.Node {
 	switch n := node.(type) {
 	case *ast.TableName:
 		// 处理表名中的反引号
@@ -420,7 +420,7 @@ func (r *RuleChecker) replaceQuotes(node ast.Node, rule config.Rule) ast.Node {
 }
 
 // replaceClause 替换子句
-func (r *RuleChecker) replaceClause(node ast.Node, rule config.Rule) ast.Node {
+func (r *RuleChecker) replaceClause(node ast.Node, _ config.Rule) ast.Node {
 	switch n := node.(type) {
 	case *ast.Limit:
 		// 处理 LIMIT 子句转换为 OFFSET FETCH

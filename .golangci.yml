@@ -1,0 +1,33 @@
+# golangci-lint 配置（中文注释）
+# 配置版本：1.x -> 2 迁移兼容（建议使用 v1.50+ 的 golangci-lint）
+version: 2
+# 说明：启用一组推荐的 linters 并设置合理的阈值与超时。
+# 说明：启用一组推荐的 linters 并设置合理的阈值与超时。
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - revive
+    - ineffassign
+    - unused
+    - gocyclo
+  # 不显式禁用任何 linter，保留由版本决定
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  revive:
+    ignoreGeneratedHeader: true
+
+issues:
+  # 0 表示不限制（由 CI 成功/失败决定）
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+exclude-use-default: false
+exclude:
+  - "error return value not checked.*(Close|close)\\("

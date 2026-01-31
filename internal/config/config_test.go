@@ -173,7 +173,11 @@ func TestResolveFilePath(t *testing.T) {
 
 		// 切换到临时目录
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				t.Logf("恢复工作目录失败: %v", err)
+			}
+		}()
 
 		err = os.Chdir(tmpDir)
 		require.NoError(t, err)
@@ -188,7 +192,11 @@ func TestGetDefaultConfigPath(t *testing.T) {
 	t.Run("no_config_found", func(t *testing.T) {
 		// 保存原始工作目录
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				t.Logf("恢复工作目录失败: %v", err)
+			}
+		}()
 
 		// 创建空目录
 		tmpDir := t.TempDir()

@@ -19,16 +19,20 @@ const (
 	// WindowsMaxPath 是 Windows 系统下的最大文件路径长度
 	WindowsMaxPath = 260
 
-	InputTypeSqlFile    InputType = "sqlFile"    // SQL文件
+	// InputTypeSQLFile 表示以文件路径形式的 SQL 文件输入类型。
+	InputTypeSQLFile    InputType = "sqlFile"    // SQL文件
+	// InputTypeGeneralLog 表示 MySQL general log 文件输入类型（例如 slow log / general log）。
 	InputTypeGeneralLog InputType = "generalLog" // MySQL general log文件
+	// InputTypeString 表示直接传入的 SQL 字符串输入类型。
 	InputTypeString     InputType = "string"     // 字符串
+	// InputTypeStream 表示基于 io.Reader 的流式输入类型。
 	InputTypeStream     InputType = "stream"     // 流输入
 )
 
 // NewParser 根据输入类型创建相应的解析器
 func NewParser(inputType InputType) InputParser {
 	switch inputType {
-	case InputTypeSqlFile:
+	case InputTypeSQLFile:
 		return NewSQLFileParser()
 	case InputTypeGeneralLog:
 		return NewGeneralLogFileParser()
@@ -66,7 +70,7 @@ func DetectInputType(source any) InputType {
 			// 根据文件扩展名返回具体类型
 			lowerStr := strings.ToLower(v)
 			if strings.HasSuffix(lowerStr, ".sql") {
-				return InputTypeSqlFile
+				return InputTypeSQLFile
 			} else if strings.HasSuffix(lowerStr, ".log") {
 				return InputTypeGeneralLog
 			}

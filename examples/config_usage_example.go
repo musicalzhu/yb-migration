@@ -1,3 +1,5 @@
+// Package main 提供示例程序，演示如何加载和使用配置。
+// 该示例仅用于开发与文档目的，不用于生产环境。
 package main
 
 import (

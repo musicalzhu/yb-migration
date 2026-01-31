@@ -25,7 +25,9 @@ func TestMain_Integration_ValidSQLFile(t *testing.T) {
 	require.NoError(t, err, "应能获取绝对路径")
 
 	// 清理之前的输出
-	os.RemoveAll(reportPath)
+	if err := os.RemoveAll(reportPath); err != nil {
+		t.Logf("清理输出目录失败: %v", err)
+	}
 
 	// 确保目录存在
 	err = os.MkdirAll(reportPath, 0755)
@@ -84,7 +86,9 @@ func TestMain_Integration_LogFile(t *testing.T) {
 	require.NoError(t, err, "应能获取绝对路径")
 
 	// 清理之前的输出
-	os.RemoveAll(reportPath)
+	if err := os.RemoveAll(reportPath); err != nil {
+		t.Logf("清理输出目录失败: %v", err)
+	}
 
 	// 确保目录存在
 	err = os.MkdirAll(reportPath, 0755)
@@ -132,7 +136,9 @@ func TestMain_Integration_Directory(t *testing.T) {
 	require.NoError(t, err, "应能获取绝对路径")
 
 	// 清理之前的输出
-	os.RemoveAll(reportPath)
+	if err := os.RemoveAll(reportPath); err != nil {
+		t.Logf("清理输出目录失败: %v", err)
+	}
 
 	// 确保目录存在
 	err = os.MkdirAll(reportPath, 0755)
@@ -180,7 +186,9 @@ func TestMain_Integration_MultipleReportFormats(t *testing.T) {
 	require.NoError(t, err, "应能获取绝对路径")
 
 	// 清理之前的输出
-	os.RemoveAll(reportPath)
+	if err := os.RemoveAll(reportPath); err != nil {
+		t.Logf("清理输出目录失败: %v", err)
+	}
 
 	// 确保目录存在
 	err = os.MkdirAll(reportPath, 0755)

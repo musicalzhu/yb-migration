@@ -20,6 +20,6 @@
       }
     }
   ],
-  "source": "c:\\微云同步助手\\1469866358\\WorkBench\\go\\yb-migration\\testdata\\mysql_queries.sql",
+  "source": "C:\\微云同步助手\\1469866358\\WorkBench\\go\\yb-migration\\testdata\\mysql_queries.sql",
   "transformed_sql": "CREATE TABLE `users` (`id` INT PRIMARY KEY,`name` VARCHAR(255),`tags` JSON);\nSELECT STRING_AGG(`name`, ',') FROM `users`"
 }

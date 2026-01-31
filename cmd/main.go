@@ -1,3 +1,5 @@
+// Package main 是 CLI 程序入口，负责解析命令行参数、加载配置，并
+// 调用分析与报告生成功能。可通过 `run` 函数进行单元测试。
 package main
 
 import (

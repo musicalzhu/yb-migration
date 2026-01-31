@@ -1,3 +1,5 @@
+// Package sqlparser 提供基于 TiDB 的 SQL 解析器封装，用于将 SQL 文本解析为 AST 节点。
+// 空白导入 `test_driver` 用于使 TiDB 解析器加载必要的测试驱动。
 package sqlparser
 
 import (
@@ -5,14 +7,19 @@ import (
 
 	pparser "github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
+	// 空白导入 test_driver 是为了兼容 TiDB 的解析器实现。
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 )
 
 // SqlParser 定义 SQL 解析器接口
+//revive:disable:var-naming
+// SqlParser 定义 SQL 解析器接口
+// 注意：类型名保持 `SqlParser` 以兼容现有代码调用。
 type SqlParser interface {
 	// ParseSQL 解析 SQL 语句，返回 AST 节点
 	ParseSQL(sql string) ([]ast.StmtNode, error)
 }
+//revive:enable:var-naming
 
 // SQLParser 实现 Parser 接口
 type SQLParser struct {

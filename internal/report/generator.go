@@ -1,3 +1,5 @@
+// Package report 提供将分析结果输出为多种报告格式的功能。
+// 支持 JSON、Markdown、HTML 等格式，并提供生成器注册与调用的通用接口。
 package report
 
 import (

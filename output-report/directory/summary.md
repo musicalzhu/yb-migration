@@ -2,7 +2,7 @@
 
 ## 摘要
 
-- **来源**: c:\微云同步助手\1469866358\WorkBench\go\yb-migration\testdata
+- **来源**: C:\微云同步助手\1469866358\WorkBench\go\yb-migration\testdata
 - **发现的问题数**: 3
 
 ## 发现的问题

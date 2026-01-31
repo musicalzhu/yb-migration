@@ -11,16 +11,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// RuleCondition 定义规则匹配的条件，用于在 SQL 文本中定位需要转换或检查的模式。
 type RuleCondition struct {
 	Pattern string `yaml:"pattern"` // 用于匹配SQL中的模式字符串
 }
 
+// RuleAction 定义匹配规则触发后要执行的动作，例如替换函数名或数据类型。
 type RuleAction struct {
 	Action  string              `yaml:"action"`  // 表示要执行的动作类型
 	Target  string              `yaml:"target"`  // 表示动作的目标值
 	Mapping []map[string]string `yaml:"mapping"` // 包含从源到目标的映射关系
 }
 
+// Rule 表示一条转换或检查规则，包含匹配条件与执行动作。
 type Rule struct {
 	Name        string        `yaml:"name"`        // 规则的唯一标识符
 	Description string        `yaml:"description"` // 描述规则的功能和用途
@@ -29,6 +32,7 @@ type Rule struct {
 	Then        RuleAction    `yaml:"then"`        // 定义规则匹配后执行的动作
 }
 
+// Config 表示加载后的配置文件内容，包含所有规则及元信息。
 type Config struct {
 	Rules []Rule `yaml:"rules"` // 存储加载的转换规则
 	// 新增字段
