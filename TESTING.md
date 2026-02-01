@@ -19,17 +19,15 @@
 internal/
 ├── analyzer/
 │   ├── analyzer_test.go           # 分析器单元测试
-│   └── analyzer_bench_test.go    # 分析器性能测试
+│   
 ├── checker/
-│   ├── checker_test.go            # 检查器基类测试
-│   ├── datatype_checker_test.go  # 数据类型检查器测试
-│   ├── function_checker_test.go   # 函数检查器测试
-│   ├── syntax_checker_test.go     # 语法检查器测试
-│   └── test_window.go            # 测试窗口函数
+│   └── checker_test.go            # 检查器单元测试与基准测试
+├── config/
+│   └── config_test.go             # 配置模块测试
 ├── input-parser/
-│   └── input_parser_test.go      # 输入解析器测试
+│   └── general_log_parser_test.go      # 输入解析器测试
 ├── report/
-│   └── report_test.go            # 报告生成器测试
+│   
 ├── sql-parser/
 │   └── sql_parser_test.go        # SQL 解析器测试
 └── testutils/
@@ -59,10 +57,10 @@ go tool cover -html=coverage.txt -o coverage.html
 
 ```bash
 # 运行集成测试
-go test -v -tags=integration ./cmd/integration_test.go
+go test -v ./cmd
 
 # 运行特定集成测试
-go test -v -tags=integration -run TestIntegration_ValidSQL
+go test -v ./cmd -run TestMain_Integration_ValidSQLFile
 ```
 
 ### 性能测试
@@ -106,31 +104,14 @@ func TestSQLAnalyzer_AnalyzeSQL_InvalidSQL(t *testing.T) {
 }
 ```
 
-#### 性能测试
-
-文件：`internal/analyzer/analyzer_bench_test.go`
-
-测试覆盖：
-- 大量 SQL 语句解析性能
-- 内存使用情况
-- 并发处理能力
-
-```go
-func BenchmarkSQLAnalyzer_AnalyzeSQL(b *testing.B) {
-    // 性能基准测试
-}
-```
-
 ### 检查器测试
 
-#### 数据类型检查器
-
-文件：`internal/checker/datatype_checker_test.go`
+文件：`internal/checker/checker_test.go`
 
 测试覆盖：
-- MySQL 数据类型识别
-- YugaByte 兼容性检查
-- 类型转换建议
+- 检查器基础行为
+- 多检查器组合
+- 部分基准测试
 
 ```go
 func TestDatatypeChecker_Check(t *testing.T) {
@@ -142,39 +123,9 @@ func TestDatatypeChecker_GetSuggestion(t *testing.T) {
 }
 ```
 
-#### 函数检查器
-
-文件：`internal/checker/function_checker_test.go`
-
-测试覆盖：
-- MySQL 函数识别
-- YugaByte 函数兼容性
-- 替代方案建议
-
-```go
-func TestFunctionChecker_Check(t *testing.T) {
-    // 测试函数检查
-}
-```
-
-#### 语法检查器
-
-文件：`internal/checker/syntax_checker_test.go`
-
-测试覆盖：
-- SQL 语法验证
-- YugaByte 语法兼容性
-- 语法错误检测
-
-```go
-func TestSyntaxChecker_Check(t *testing.T) {
-    // 测试语法检查
-}
-```
-
 ### 集成测试
 
-文件：`cmd/integration_test.go`
+文件：`cmd/main_integration_test.go`
 
 测试覆盖：
 - 完整的分析流程
@@ -183,15 +134,15 @@ func TestSyntaxChecker_Check(t *testing.T) {
 - 错误处理
 
 ```go
-func TestIntegration_ValidSQL(t *testing.T) {
+func TestMain_Integration_ValidSQLFile(t *testing.T) {
     // 测试完整流程：配置加载 → SQL 解析 → 报告生成
 }
 
-func TestIntegration_GeneralLog(t *testing.T) {
+func TestMain_Integration_LogFile(t *testing.T) {
     // 测试日志文件分析
 }
 
-func TestIntegration_DirectoryInput(t *testing.T) {
+func TestMain_Integration_Directory(t *testing.T) {
     // 测试目录批量分析
 }
 ```
@@ -224,17 +175,159 @@ type TestCase struct {
 
 测试阶段：
 1. **单元测试**：`go test -v -race -coverprofile=coverage.txt`
-2. **集成测试**：`go test -v -tags=integration -race`
+2. **集成测试**：`go test -v -race ./cmd`
 3. **代码检查**：`golangci-lint run`
 4. **性能测试**：`go test -bench=. -benchmem`
 
 ### 测试覆盖率
 
-- 目标覆盖率：> 80%
-- 覆盖率报告：自动生成并保存为 artifacts
-- 覆盖率阈值：在 CI 中检查，低于阈值则失败
-
 ## 测试最佳实践
+
+### API 测试指南
+
+基于简化的 API 设计，推荐以下测试模式：
+
+#### 分析器创建测试
+
+```go
+func TestSQLAnalyzer_Creation(t *testing.T) {
+    // 测试字符串分析器创建
+    factory, err := NewAnalyzerFactory("")
+    require.NoError(t, err)
+    
+    checkers, err := factory.CreateCheckers("datatype", "function")
+    require.NoError(t, err)
+    
+    sqlParser := sqlparser.NewSQLParser()
+    
+    analyzer, err := NewSQLAnalyzer(
+        inputparser.NewStringParser(), 
+        sqlParser, 
+        checkers,
+    )
+    require.NoError(t, err)
+    assert.NotNil(t, analyzer)
+}
+
+func TestSQLAnalyzer_FileAnalyzerCreation(t *testing.T) {
+    // 测试文件分析器创建
+    factory, err := NewAnalyzerFactory("")
+    require.NoError(t, err)
+    
+    checkers, err := factory.CreateCheckers("datatype")
+    require.NoError(t, err)
+    
+    sqlParser := sqlparser.NewSQLParser()
+    
+    analyzer, err := NewSQLAnalyzer(
+        inputparser.NewSQLFileParser(), 
+        sqlParser, 
+        checkers,
+    )
+    require.NoError(t, err)
+    assert.NotNil(t, analyzer)
+}
+```
+
+#### 错误处理测试
+
+```go
+func TestSQLAnalyzer_ErrorHandling(t *testing.T) {
+    factory, err := NewAnalyzerFactory("")
+    require.NoError(t, err)
+    
+    checkers, err := factory.CreateCheckers("datatype")
+    require.NoError(t, err)
+    
+    sqlParser := sqlparser.NewSQLParser()
+    analyzer, err := NewSQLAnalyzer(
+        inputparser.NewStringParser(), 
+        sqlParser, 
+        checkers,
+    )
+    require.NoError(t, err)
+    
+    t.Run("empty_sql_error", func(t *testing.T) {
+        result, err := analyzer.AnalyzeSQL("", "test")
+        require.Error(t, err)
+        
+        // 使用 errors.As 检查错误类型
+        var analysisErr *model.AnalysisError
+        require.True(t, errors.As(err, &analysisErr))
+        assert.Equal(t, model.ErrorTypeNoSQL, analysisErr.Type)
+        assert.Contains(t, analysisErr.Message, "未找到有效的 SQL 语句")
+    })
+    
+    t.Run("invalid_sql_error", func(t *testing.T) {
+        result, err := analyzer.AnalyzeSQL("INVALID SQL", "test")
+        require.Error(t, err)
+        
+        var analysisErr *model.AnalysisError
+        require.True(t, errors.As(err, &analysisErr))
+        assert.Equal(t, model.ErrorTypeParse, analysisErr.Type)
+        assert.Contains(t, analysisErr.Message, "SQL 解析失败")
+    })
+}
+
+func TestSQLAnalyzer_ErrorTypeChecking(t *testing.T) {
+    // 测试 errors.Is 使用
+    factory, err := NewAnalyzerFactory("")
+    require.NoError(t, err)
+    
+    checkers, err := factory.CreateCheckers("datatype")
+    require.NoError(t, err)
+    
+    sqlParser := sqlparser.NewSQLParser()
+    analyzer, err := NewSQLAnalyzer(
+        inputparser.NewStringParser(), 
+        sqlParser, 
+        checkers,
+    )
+    require.NoError(t, err)
+    
+    result, err := analyzer.AnalyzeSQL("", "test")
+    require.Error(t, err)
+    
+    // 使用 errors.Is 检查预定义错误
+    assert.True(t, errors.Is(err, model.ErrNoSQL))
+    assert.False(t, errors.Is(err, model.ErrParse))
+}
+```
+
+#### AnalyzeInput 集成测试
+
+```go
+func TestAnalyzeInput_StringInput(t *testing.T) {
+    sqlParser := sqlparser.NewSQLParser()
+    factory, err := NewAnalyzerFactory("")
+    require.NoError(t, err)
+    
+    checkers, err := factory.CreateCheckers("datatype")
+    require.NoError(t, err)
+    
+    t.Run("valid_sql_string", func(t *testing.T) {
+        sql := "CREATE TABLE test (id INT, name VARCHAR(255))"
+        result, err := AnalyzeInput(sql, sqlParser, checkers)
+        require.NoError(t, err)
+        
+        assert.Equal(t, sql, result.SQL)
+        assert.Equal(t, "input_string", result.Source)
+        assert.NotEmpty(t, result.Issues) // 应该检测到 TINYINT 等问题
+    })
+    
+    t.Run("unsupported_type", func(t *testing.T) {
+        result, err := AnalyzeInput(123, sqlParser, checkers)
+        require.Error(t, err)
+        
+        assert.Equal(t, "unknown", result.Source)
+        assert.Contains(t, err.Error(), "不支持的输入类型")
+    })
+}
+```
+
+#### 性能测试模板
+
+当前仓库已包含部分基准测试（例如 `internal/checker/checker_test.go` 中的 `Benchmark...`）。如需新增 analyzer 相关基准测试，建议在 `internal/analyzer/analyzer_test.go` 中补充对应的 `Benchmark...` 函数。
 
 ### 编写测试用例
 

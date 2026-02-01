@@ -20,7 +20,7 @@ type SyntaxChecker struct {
 //   - *SyntaxChecker: 初始化后的语法检查器实例
 //   - error: 错误信息
 func NewSyntaxChecker(cfg *config.Config) (*SyntaxChecker, error) {
-	ruleChecker, err := NewRuleChecker("SyntaxChecker", "syntax", cfg)
+	ruleChecker, err := newRuleChecker("SyntaxChecker", "syntax", cfg)
 	if err != nil {
 		return nil, fmt.Errorf("创建语法检查器失败: %w", err)
 	}

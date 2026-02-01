@@ -32,7 +32,6 @@ type UniqueIssue struct {
 type AnalysisResult struct {
 	SQL            string  `json:"sql"`                       // 原始 SQL 语句，可能包含多条 SQL 语句
 	Issues         []Issue `json:"issues"`                    // 发现的问题列表
-	Error          string  `json:"error,omitempty"`           // 解析错误（如果有）
 	Source         string  `json:"source,omitempty"`          // SQL 来源（文件、IO 等）
 	TransformedSQL string  `json:"transformed_sql,omitempty"` // 转换后的SQL语句
 }
@@ -45,4 +44,20 @@ type Report struct {
 	UniqueIssues  []UniqueIssue    `json:"unique_issues"`  // 唯一问题列表
 	Results       []AnalysisResult `json:"results"`        // 每个分析项的结果
 	GeneratedAt   time.Time        `json:"generated_at"`   // 报告生成时间
+
+	// 新增字段：规则与检查器统计信息
+	RuleStats    RuleStats    `json:"rule_stats"`    // 规则统计信息
+	CheckerStats CheckerStats `json:"checker_stats"` // 检查器统计信息
+}
+
+// RuleStats 规则统计信息
+type RuleStats struct {
+	TotalRules int            `json:"total_rules"` // 总规则数量
+	ByCategory map[string]int `json:"by_category"` // 按类别统计的规则数量
+}
+
+// CheckerStats 检查器统计信息
+type CheckerStats struct {
+	TotalCheckers int      `json:"total_checkers"` // 总检查器数量
+	Checkers      []string `json:"checkers"`       // 检查器名称列表
 }

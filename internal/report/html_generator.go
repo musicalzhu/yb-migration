@@ -12,19 +12,23 @@ import (
 // HTMLGenerator 生成 HTML 格式的报告
 type HTMLGenerator struct{}
 
-// Write 将分析结果写入 HTML 文件
-func (g *HTMLGenerator) Write(path string, result model.AnalysisResult) error {
+// Write 将报告写入 HTML 文件
+func (g *HTMLGenerator) Write(path string, report model.Report) error {
 	// 准备模板数据
 	data := struct {
-		Title       string
-		Result      model.AnalysisResult
-		DateTime    string
-		TotalIssues int
+		Title        string
+		Report       model.Report
+		DateTime     string
+		TotalIssues  int
+		RuleStats    model.RuleStats
+		CheckerStats model.CheckerStats
 	}{
-		Title:       "SQL 分析报告",
-		Result:      result,
-		DateTime:    time.Now().Format("2006-01-02 15:04:05"),
-		TotalIssues: len(result.Issues),
+		Title:        "SQL 分析报告",
+		Report:       report,
+		DateTime:     time.Now().Format("2006-01-02 15:04:05"),
+		TotalIssues:  report.TotalIssues,
+		RuleStats:    report.RuleStats,
+		CheckerStats: report.CheckerStats,
 	}
 
 	// 解析模板
@@ -64,7 +68,10 @@ const htmlTemplate = `<!DOCTYPE html>
         body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 30px; }
         .summary { background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .stat-box { background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff; }
         .issue { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px; }
         .success { color: #28a745; }
         .error { color: #dc3545; }
@@ -72,6 +79,8 @@ const htmlTemplate = `<!DOCTYPE html>
         pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
         .meta { color: #6c757d; font-size: 0.9em; }
         code { font-family: 'Courier New', Courier, monospace; }
+        ul { list-style-type: none; padding-left: 0; }
+        li { margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -80,35 +89,46 @@ const htmlTemplate = `<!DOCTYPE html>
         
         <div class="summary">
             <h2>分析概览</h2>
-            {{if .Result.Source}}<p><strong>来源:</strong> {{.Result.Source}}</p>{{end}}
-            <p><strong>问题数量:</strong> {{.TotalIssues}}</p>
+            <p><strong>总分析项数:</strong> {{.Report.TotalAnalyses}}</p>
+            <p><strong>总问题数:</strong> {{.TotalIssues}}</p>
             <p class="meta">生成时间: {{.DateTime}}</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <h3>规则统计</h3>
+                <p><strong>总规则数:</strong> {{.RuleStats.TotalRules}}</p>
+                {{if .RuleStats.ByCategory}}
+                <h4>按类别统计:</h4>
+                <ul>
+                {{range $category, $count := .RuleStats.ByCategory}}
+                    <li><strong>{{$category}}:</strong> {{$count}} 条规则</li>
+                {{end}}
+                </ul>
+                {{end}}
+            </div>
+            
+            <div class="stat-box">
+                <h3>检查器统计</h3>
+                <p><strong>总检查器数:</strong> {{.CheckerStats.TotalCheckers}}</p>
+                {{if .CheckerStats.Checkers}}
+                <h4>检查器列表:</h4>
+                <ul>
+                {{range $checker := .CheckerStats.Checkers}}
+                    <li><strong>{{$checker}}</strong></li>
+                {{end}}
+                </ul>
+                {{end}}
+            </div>
         </div>
 
         {{if gt .TotalIssues 0}}
         <div class="issues">
             <h2>发现的问题 ({{.TotalIssues}})</h2>
-            {{range $index, $issue := .Result.Issues}}
+            {{range $index, $issue := .Report.UniqueIssues}}
             <div class="issue">
                 <h3>问题 #{{add $index 1}}: {{$issue.Checker}}</h3>
                 <p>{{$issue.Message}}</p>
-                {{if or $issue.File $issue.Line}}
-                <p class="meta">
-                    {{if $issue.File}}文件: {{$issue.File}}{{end}}
-                    {{if $issue.Line}}, 行号: {{$issue.Line}}{{end}}
-                </p>
-                {{end}}
-                {{if $issue.AutoFix.Available}}
-                <p><strong>自动修复:</strong> 可用
-                    {{if $issue.AutoFix.Action}}
-                    <br>操作: {{$issue.AutoFix.Action}}
-                    {{end}}
-                </p>
-                {{if $issue.AutoFix.Code}}
-                <p><strong>修复代码:</strong></p>
-                <pre><code>{{$issue.AutoFix.Code}}</code></pre>
-                {{end}}
-                {{end}}
             </div>
             {{end}}
         </div>

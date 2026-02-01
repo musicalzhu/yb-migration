@@ -16,6 +16,8 @@ import (
 
 // Checker 检查器接口
 type Checker interface {
+	// Name 返回检查器名称
+	Name() string
 	// Inspect 检查AST节点
 	// 参数:
 	//   - node: 当前检查的AST节点
@@ -47,7 +49,7 @@ type RuleChecker struct {
 	mu       sync.RWMutex           // 读写锁：保护并发访问 `issues` 字段，保证对问题集合的并发读写安全
 }
 
-// NewRuleChecker 创建规则检查器（支持依赖注入）
+// newRuleChecker 创建规则检查器（包内私有）
 // 参数:
 //   - name: 检查器名称，用于标识和日志输出
 //   - category: 规则类别，决定从配置文件中加载哪类规则
@@ -56,7 +58,7 @@ type RuleChecker struct {
 // 返回:
 //   - *RuleChecker: 初始化后的规则检查器实例
 //   - error: 错误信息
-func NewRuleChecker(name, category string, cfg *config.Config) (*RuleChecker, error) {
+func newRuleChecker(name, category string, cfg *config.Config) (*RuleChecker, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("配置实例不能为空")
 	}
@@ -148,36 +150,74 @@ func (r *RuleChecker) GetRules() map[string]config.Rule {
 	return r.rules
 }
 
+// TableOption 类型常量 (对应 TiDB AST 中的 TableOption.Tp)
+// 这些常量用于标识表选项类型，应在包级别定义以便所有检查器使用
+const (
+	TableOptionCharacterSet = 2 // CHARACTER SET 选项
+	TableOptionCollate      = 3 // COLLATE 选项
+)
+
 // 确保 visitor 实现了 ast.Visitor 接口
 var _ ast.Visitor = (*visitor)(nil)
 
 // visitor 实现 ast.Visitor 接口，用于遍历SQL AST
+//
+// 字段说明:
+//   - checkers: 检查器列表，用于处理AST节点
+//   - skipChildren: 布尔标志，指示是否跳过当前节点的子节点
+//
+// 并发安全:
+//   - 该结构体不是并发安全的，每个goroutine应该使用独立的实例
 type visitor struct {
 	checkers     []Checker
 	skipChildren bool // 缓存是否跳过子节点
 }
 
 // Reset 重置访问者状态
+//
+// 功能:
+//   - 重置 skipChildren 标志为 false
+//   - 在开始新的AST遍历前调用
+//
+// 使用场景:
+//   - 复用visitor实例进行多次遍历
+//   - 确保每次遍历的初始状态一致
 func (v *visitor) Reset() {
 	v.skipChildren = false
 }
 
-// getCheckerName 获取检查器名称的辅助函数
+// getCheckerName 获取检查器名称的辅助函数。
+// 通过反射获取检查器的类型名称，用于日志和错误报告。
+// 参数:
+//   - c: 检查器实例，不能为 nil
+//
+// 返回:
+//   - string: 检查器的类型名称（格式：*package.TypeName）
 func getCheckerName(c Checker) string {
 	return fmt.Sprintf("%T", c)
 }
 
 // Enter 实现 ast.Visitor 接口
 // 当进入节点时调用，返回处理后的节点和是否跳过子节点
+//
+// 参数:
+//   - node: 当前访问的AST节点
+//
+// 返回值:
+//   - ast.Node: 处理后的节点（通常返回原节点）
+//   - bool: 是否跳过子节点遍历
+//
+// 实现细节:
+//  1. 检查节点是否为nil或已标记跳过
+//  2. 遍历所有检查器处理当前节点
+//  3. 收集检查器的跳过子节点请求
+//
+// 并发安全:
+//   - 该方法不是并发安全的，应该单线程调用
 func (v *visitor) Enter(node ast.Node) (ast.Node, bool) {
 	// 如果节点为nil或已标记跳过子节点，则直接返回
 	if node == nil || v.skipChildren {
 		return node, true
-	}
-
-	// 额外的安全检查：确保节点是有效的
-	if node == nil {
-		return nil, true
 	}
 
 	var skip bool
@@ -437,7 +477,7 @@ func (r *RuleChecker) replaceCharset(node ast.Node, rule config.Rule) ast.Node {
 	switch n := node.(type) {
 	case *ast.TableOption:
 		// 处理表选项中的字符集
-		if n.Tp == 2 && n.StrValue != "" { // TableOptionCharacterSet
+		if n.Tp == TableOptionCharacterSet && n.StrValue != "" {
 			n.StrValue = rule.Then.Target
 		}
 		return n
@@ -451,7 +491,7 @@ func (r *RuleChecker) replaceCollation(node ast.Node, rule config.Rule) ast.Node
 	switch n := node.(type) {
 	case *ast.TableOption:
 		// 处理表选项中的排序规则
-		if n.Tp == 3 && n.StrValue != "" { // TableOptionCollate
+		if n.Tp == TableOptionCollate && n.StrValue != "" {
 			n.StrValue = rule.Then.Target
 		}
 		return n

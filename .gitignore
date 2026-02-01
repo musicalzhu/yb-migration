@@ -1,0 +1,124 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Build directories
+bin/
+build/
+dist/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+
+# Report output directories
+output-report/
+reports/
+
+# Coverage files
+coverage/
+*.cover
+*.coverage
+coverage.html
+coverage.out
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Configuration files with sensitive data
+config.local.yaml
+*.local.yaml
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+
+# Test artifacts
+test-results/
+test-logs/
+
+# Profiling data
+*.prof
+*.pprof
+
+# Documentation build artifacts
+docs/_build/
+docs/site/
+
+# Local development
+local/
+dev/
+
+# Cache directories
+.cache/
+*.cache
+
+# Lock files (some teams prefer to commit these, others don't)
+# Uncomment if you don't want to commit lock files
+# go.sum
+# go.mod.sum
+
+# Generated files
+generated/
+*.generated.go
+
+# Editor backup files
+*.orig
+*.rej
+
+# Mac OS X
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Project specific
+# Ignore test data that shouldn't be committed
+# testdata/local/
+# testdata/temp/

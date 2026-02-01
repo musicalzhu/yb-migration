@@ -7,7 +7,10 @@
         body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 30px; }
         .summary { background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .stat-box { background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff; }
         .issue { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px; }
         .success { color: #28a745; }
         .error { color: #dc3545; }
@@ -15,6 +18,8 @@
         pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
         .meta { color: #6c757d; font-size: 0.9em; }
         code { font-family: 'Courier New', Courier, monospace; }
+        ul { list-style-type: none; padding-left: 0; }
+        li { margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -23,14 +28,65 @@
         
         <div class="summary">
             <h2>分析概览</h2>
-            <p><strong>来源:</strong> ../testdata/mysql_queries.sql</p>
-            <p><strong>问题数量:</strong> 0</p>
-            <p class="meta">生成时间: 2026-01-21 14:47:40</p>
+            <p><strong>总分析项数:</strong> 1</p>
+            <p><strong>总问题数:</strong> 2</p>
+            <p class="meta">生成时间: 2026-02-01 20:34:07</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <h3>规则统计</h3>
+                <p><strong>总规则数:</strong> 11</p>
+                
+                <h4>按类别统计:</h4>
+                <ul>
+                
+                    <li><strong>charset:</strong> 4 条规则</li>
+                
+                    <li><strong>datatype:</strong> 1 条规则</li>
+                
+                    <li><strong>function:</strong> 3 条规则</li>
+                
+                    <li><strong>syntax:</strong> 3 条规则</li>
+                
+                </ul>
+                
+            </div>
+            
+            <div class="stat-box">
+                <h3>检查器统计</h3>
+                <p><strong>总检查器数:</strong> 4</p>
+                
+                <h4>检查器列表:</h4>
+                <ul>
+                
+                    <li><strong>DataTypeChecker</strong></li>
+                
+                    <li><strong>SyntaxChecker</strong></li>
+                
+                    <li><strong>CharsetChecker</strong></li>
+                
+                    <li><strong>FunctionChecker</strong></li>
+                
+                </ul>
+                
+            </div>
         </div>
 
         
-        <div class="success-message">
-            <p class="success">✓ 未发现兼容性问题</p>
+        <div class="issues">
+            <h2>发现的问题 (2)</h2>
+            
+            <div class="issue">
+                <h3>问题 #1: FunctionChecker</h3>
+                <p>函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)</p>
+            </div>
+            
+            <div class="issue">
+                <h3>问题 #2: SyntaxChecker</h3>
+                <p>语法 AUTO_INCREMENT: MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL (建议: SERIAL)</p>
+            </div>
+            
         </div>
         
     </div>

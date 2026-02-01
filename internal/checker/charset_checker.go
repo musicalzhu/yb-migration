@@ -19,12 +19,8 @@ import (
 //   - 提供问题描述
 //   - 生成兼容性报告
 //   - 与AST规则引擎协同工作
-
-// TableOption 类型常量 (对应 TiDB AST 中的 TableOption.Tp)
-const (
-	TableOptionCharacterSet = 2 // CHARACTER SET 选项
-	TableOptionCollate      = 3 // COLLATE 选项
-)
+//
+// 注意: TableOptionCharacterSet 和 TableOptionCollate 常量已在 checker 包中定义
 
 // CharsetChecker 字符集检查器实现
 // 检查SQL字符集和排序规则兼容性问题
@@ -38,7 +34,7 @@ type CharsetChecker struct {
 //   - *CharsetChecker: 初始化后的字符集检查器实例
 //   - error: 错误信息
 func NewCharsetChecker(cfg *config.Config) (*CharsetChecker, error) {
-	ruleChecker, err := NewRuleChecker("CharsetChecker", "charset", cfg)
+	ruleChecker, err := newRuleChecker("CharsetChecker", "charset", cfg)
 	if err != nil {
 		return nil, fmt.Errorf("创建字符集检查器失败: %w", err)
 	}

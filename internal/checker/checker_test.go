@@ -56,7 +56,7 @@ func TestNewRuleChecker(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			chk, err := NewRuleChecker(tc.inName, tc.inCat, tc.cfg)
+			chk, err := newRuleChecker(tc.inName, tc.inCat, tc.cfg)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -73,7 +73,7 @@ func TestNewRuleChecker(t *testing.T) {
 
 func TestRuleChecker_BasicMethods(t *testing.T) {
 	cfg := testutils.GetTestConfig(t)
-	checker, err := NewRuleChecker("test", "function", cfg)
+	checker, err := newRuleChecker("test", "function", cfg)
 	require.NoError(t, err)
 
 	t.Run("name_and_category", func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestRuleChecker_LoadRulesFromConfig(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			checker, err := NewRuleChecker("test", tc.category, cfg)
+			checker, err := newRuleChecker("test", tc.category, cfg)
 			require.NoError(t, err)
 			rules := checker.GetRules()
 			if tc.expectAny {
@@ -139,7 +139,7 @@ func TestRuleChecker_LoadRulesFromConfig(t *testing.T) {
 
 func TestRuleChecker_ConcurrentSafety(t *testing.T) {
 	cfg := testutils.GetTestConfig(t)
-	checker, err := NewRuleChecker("concurrent_test", "function", cfg)
+	checker, err := newRuleChecker("concurrent_test", "function", cfg)
 	require.NoError(t, err)
 
 	const numGoroutines = 100
@@ -380,7 +380,7 @@ func TestCheckerErrorHandling(t *testing.T) {
 
 	t.Run("empty_config", func(t *testing.T) {
 		emptyCfg := &config.Config{Rules: []config.Rule{}}
-		checker, err := NewRuleChecker("test", "function", emptyCfg)
+		checker, err := newRuleChecker("test", "function", emptyCfg)
 		require.NoError(t, err)
 		assert.Empty(t, checker.GetRules())
 

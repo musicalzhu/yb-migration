@@ -29,7 +29,7 @@ type FunctionChecker struct {
 //   - *FunctionChecker: 初始化后的函数检查器实例
 //   - error: 错误信息
 func NewFunctionChecker(cfg *config.Config) (*FunctionChecker, error) {
-	ruleChecker, err := NewRuleChecker("FunctionChecker", "function", cfg)
+	ruleChecker, err := newRuleChecker("FunctionChecker", "function", cfg)
 	if err != nil {
 		return nil, fmt.Errorf("创建函数检查器失败: %w", err)
 	}
@@ -87,7 +87,8 @@ func (f *FunctionChecker) Inspect(n ast.Node) (w ast.Node, skipChildren bool) {
 // 返回值:
 //   - ast.Node: 转换后的节点
 //   - bool: 是否跳过子节点
-func (f *FunctionChecker) handleFunctionNode(node ast.Node, funcName string, _ string) (ast.Node, bool) {
+func (f *FunctionChecker) handleFunctionNode(node ast.Node, funcName string, funcType string) (ast.Node, bool) {
+	_ = funcType
 	rules := f.GetRules()
 
 	if rule, exists := rules[funcName]; exists {

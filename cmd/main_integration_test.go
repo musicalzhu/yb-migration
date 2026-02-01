@@ -46,7 +46,7 @@ func TestMain_Integration_ValidSQLFile(t *testing.T) {
 	require.NotNil(t, sqlParser)
 	result, err := analyzer.AnalyzeInput(sqlPath, sqlParser, checkers)
 	require.NoError(t, err)
-	err = report.GenerateReports(reportPath, result)
+	err = report.GenerateReports(reportPath, result, af.GetConfig(), checkers)
 	require.NoError(t, err)
 
 	// 验证关键报告文件是否存在
@@ -62,19 +62,39 @@ func TestMain_Integration_ValidSQLFile(t *testing.T) {
 	require.NoError(t, err, "summary.json 应为有效 JSON")
 
 	// 验证报告结构
-	assert.Contains(t, summary, "sql", "报告应包含 sql 字段")
-	assert.Contains(t, summary, "issues", "报告应包含 issues 字段")
-	assert.Contains(t, summary, "source", "报告应包含 source 字段")
+	assert.Contains(t, summary, "results", "报告应包含 results 字段")
+	assert.Contains(t, summary, "rule_stats", "报告应包含 rule_stats 字段")
+	assert.Contains(t, summary, "checker_stats", "报告应包含 checker_stats 字段")
+
+	// 验证 results 数组
+	results, ok := summary["results"].([]interface{})
+	require.True(t, ok, "results 应为数组")
+	assert.Greater(t, len(results), 0, "应至少包含一个 result")
+
+	// 验证第一个 result 结构
+	firstResult := results[0].(map[string]interface{})
+	assert.Contains(t, firstResult, "sql", "result 应包含 sql 字段")
+	assert.Contains(t, firstResult, "issues", "result 应包含 issues 字段")
+	assert.Contains(t, firstResult, "source", "result 应包含 source 字段")
 
 	// 验证 issues 数组
-	issues, ok := summary["issues"].([]interface{})
-	require.True(t, ok, "issues 应为数组")
+	issues := firstResult["issues"].([]interface{})
 	assert.Greater(t, len(issues), 0, "应至少包含一个 issue")
 
 	// 验证 issue 结构
 	issue := issues[0].(map[string]interface{})
 	assert.Contains(t, issue, "checker", "issue 应包含 checker 字段")
 	assert.Contains(t, issue, "message", "issue 应包含 message 字段")
+
+	// 验证规则统计
+	ruleStats := summary["rule_stats"].(map[string]interface{})
+	assert.Contains(t, ruleStats, "total_rules", "应包含总规则数")
+	assert.Contains(t, ruleStats, "by_category", "应包含按类别统计")
+
+	// 验证检查器统计
+	checkerStats := summary["checker_stats"].(map[string]interface{})
+	assert.Contains(t, checkerStats, "total_checkers", "应包含总检查器数")
+	assert.Contains(t, checkerStats, "checkers", "应包含检查器列表")
 
 	t.Logf("报告生成在: %s", reportPath)
 }
@@ -106,7 +126,7 @@ func TestMain_Integration_LogFile(t *testing.T) {
 	require.NotNil(t, sqlParser)
 	result, err := analyzer.AnalyzeInput(logPath, sqlParser, checkers)
 	require.NoError(t, err)
-	err = report.GenerateReports(reportPath, result)
+	err = report.GenerateReports(reportPath, result, af.GetConfig(), checkers)
 	require.NoError(t, err)
 
 	// 验证报告文件生成
@@ -122,11 +142,21 @@ func TestMain_Integration_LogFile(t *testing.T) {
 	require.NoError(t, err, "summary.json 应为有效 JSON")
 
 	// 验证从日志中提取的 SQL
-	issues, ok := summary["issues"].([]interface{})
-	require.True(t, ok, "issues 应为数组")
+	results := summary["results"].([]interface{})
+	firstResult := results[0].(map[string]interface{})
+	issues := firstResult["issues"].([]interface{})
 	assert.GreaterOrEqual(t, len(issues), 1, "应至少包含一个 issue")
 
+	// 验证转换后的SQL不包含字符集前缀
+	transformedSQL := firstResult["transformed_sql"].(string)
+	charsetPrefixes := []string{"_UTF8MB4", "_utf8", "_LATIN1", "_latin1", "_binary"}
+	for _, prefix := range charsetPrefixes {
+		assert.NotContains(t, transformedSQL, prefix,
+			"转换后的SQL不应包含字符集前缀: %s", prefix)
+	}
+
 	t.Logf("日志分析报告生成在: %s", reportPath)
+	t.Logf("转换后的SQL: %s", transformedSQL)
 }
 
 // TestMain_Integration_Directory 测试目录批量分析
@@ -156,7 +186,7 @@ func TestMain_Integration_Directory(t *testing.T) {
 	require.NotNil(t, sqlParser)
 	result, err := analyzer.AnalyzeInput(testDir, sqlParser, checkers)
 	require.NoError(t, err)
-	err = report.GenerateReports(reportPath, result)
+	err = report.GenerateReports(reportPath, result, af.GetConfig(), checkers)
 	require.NoError(t, err)
 
 	// 验证报告文件生成
@@ -172,9 +202,14 @@ func TestMain_Integration_Directory(t *testing.T) {
 	require.NoError(t, err, "summary.json 应为有效 JSON")
 
 	// 验证从目录中分析到的问题
-	issues, ok := summary["issues"].([]interface{})
-	require.True(t, ok, "issues 应为数组")
-	assert.GreaterOrEqual(t, len(issues), 2, "应至少包含两个 issue（SQL文件和日志文件）")
+	results := summary["results"].([]interface{})
+	var allIssues []interface{}
+	for _, result := range results {
+		resultMap := result.(map[string]interface{})
+		issues := resultMap["issues"].([]interface{})
+		allIssues = append(allIssues, issues...)
+	}
+	assert.GreaterOrEqual(t, len(allIssues), 2, "应至少包含两个 issue（SQL文件和日志文件）")
 
 	t.Logf("目录分析报告生成在: %s", reportPath)
 }
@@ -206,7 +241,7 @@ func TestMain_Integration_MultipleReportFormats(t *testing.T) {
 	require.NotNil(t, sqlParser)
 	result, err := analyzer.AnalyzeInput(sqlPath, sqlParser, checkers)
 	require.NoError(t, err)
-	err = report.GenerateReports(reportPath, result)
+	err = report.GenerateReports(reportPath, result, af.GetConfig(), checkers)
 	require.NoError(t, err)
 
 	// 验证主要报告文件生成

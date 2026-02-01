@@ -22,7 +22,7 @@ type DataTypeChecker struct {
 //   - *DataTypeChecker: 初始化后的数据类型检查器实例
 //   - error: 错误信息
 func NewDataTypeChecker(cfg *config.Config) (*DataTypeChecker, error) {
-	ruleChecker, err := NewRuleChecker("DataTypeChecker", "datatype", cfg)
+	ruleChecker, err := newRuleChecker("DataTypeChecker", "datatype", cfg)
 	if err != nil {
 		return nil, fmt.Errorf("创建数据类型检查器失败: %w", err)
 	}
@@ -93,8 +93,13 @@ func (d *DataTypeChecker) checkColumnType(node *ast.ColumnDef) (ast.Node, bool) 
 	return transformedNode, true
 }
 
-// extractTypeNameFromFieldType 从 FieldType 提取类型名称
-// 使用 TiDB 的 GetType() 方法直接获取类型常量
+// extractTypeNameFromFieldType 从 FieldType 提取类型名称。
+// 使用 TiDB 的 GetType() 方法直接获取类型常量，并转换为字符串表示。
+// 参数:
+//   - tp: FieldType 实例，不能为 nil
+//
+// 返回:
+//   - string: 类型名称（如 "INT", "VARCHAR" 等），如果类型未知或未指定则返回空字符串
 func (d *DataTypeChecker) extractTypeNameFromFieldType(tp *types.FieldType) string {
 	if tp == nil {
 		return ""
@@ -155,7 +160,10 @@ func (d *DataTypeChecker) extractTypeNameFromFieldType(tp *types.FieldType) stri
 	case mysql.TypeUnspecified:
 		return ""
 	default:
-		panic(fmt.Sprintf("未知的 AST 类型常量: %d", tp.GetType()))
+		// 返回空字符串而不是 panic，调用者应检查返回值
+		// 对于未知类型，返回空字符串表示无法识别该类型
+		// 调用者应检查返回值是否为空，以判断类型是否有效
+		return ""
 	}
 }
 

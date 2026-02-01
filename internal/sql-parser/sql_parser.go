@@ -4,6 +4,7 @@ package sqlparser
 
 import (
 	"fmt"
+	"log"
 
 	pparser "github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -12,36 +13,30 @@ import (
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 )
 
-// SqlParser 定义 SQL 解析器接口
-// SqlParser 定义 SQL 解析器接口
-// 注意：类型名保持 `SqlParser` 以兼容现有代码调用。
-//
-//revive:disable:var-naming
-type SqlParser interface {
+// SQLParser 定义 SQL 解析器接口
+type SQLParser interface {
 	// ParseSQL 解析 SQL 语句，返回 AST 节点
 	ParseSQL(sql string) ([]ast.StmtNode, error)
 }
 
-//revive:enable:var-naming
-
-// SQLParser 实现 Parser 接口
-type SQLParser struct {
+// sqlParser 实现 SQLParser 接口
+type sqlParser struct {
 	parser *pparser.Parser
 }
 
 // NewSQLParser 创建新的 SQL 解析器实例
-func NewSQLParser() *SQLParser {
+func NewSQLParser() SQLParser {
 	p := pparser.New()
 	// 启用严格模式，确保SQL语法正确
 	p.EnableWindowFunc(true)
-	return &SQLParser{
+	return &sqlParser{
 		parser: p,
 	}
 }
 
 // ParseSQL 解析 SQL 语句，返回 AST 节点
 // 这是解析阶段，只负责将 SQL 文本转换为 AST
-func (p *SQLParser) ParseSQL(sql string) ([]ast.StmtNode, error) {
+func (p *sqlParser) ParseSQL(sql string) ([]ast.StmtNode, error) {
 	// 使用 TiDB 的解析器解析 SQL
 	stmts, warns, err := p.parser.ParseSQL(sql)
 	if err != nil {
@@ -50,8 +45,7 @@ func (p *SQLParser) ParseSQL(sql string) ([]ast.StmtNode, error) {
 
 	// 处理警告
 	for _, warn := range warns {
-		// 这里可以记录警告日志
-		_ = warn
+		log.Printf("SQL 解析 warning: %v", warn)
 	}
 
 	return stmts, nil

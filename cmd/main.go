@@ -37,8 +37,8 @@ func run(absConfigPath, absPath, absReportPath string) error {
 		return fmt.Errorf("创建分析器工厂失败: %w", err)
 	}
 
-	// 创建检查器
-	checkers, err := af.CreateCheckers()
+	// 创建检查器（根据配置自动创建）
+	checkers, err := af.CreateCheckersFromConfig()
 	if err != nil {
 		return fmt.Errorf("创建检查器失败: %w", err)
 	}
@@ -56,8 +56,14 @@ func run(absConfigPath, absPath, absReportPath string) error {
 	}
 
 	// 生成所有支持格式的报告
-	if err := report.GenerateReports(absReportPath, result); err != nil {
+	if err := report.GenerateReports(absReportPath, result, af.GetConfig(), checkers); err != nil {
 		return fmt.Errorf("生成报告失败: %w", err)
+	}
+
+	// 保存转换后的SQL到默认输出目录
+	transformedSQLPath := report.GenerateTransformedSQLPath(absPath, absReportPath)
+	if err := report.SaveTransformedSQL(result, transformedSQLPath); err != nil {
+		return fmt.Errorf("保存转换SQL失败: %w", err)
 	}
 
 	fmt.Println("分析完成！报告已生成")
@@ -81,7 +87,7 @@ func parseFlags() (absConfigPath, absPath, absReportPath string) {
 	// 定义命令行参数
 	flag.StringVar(&configPath, "config", "", "配置文件路径（YAML）。若未指定，则自动查找默认位置。")
 	flag.StringVar(&path, "path", "", "待分析的SQL文件、日志文件或目录路径（可选，若未提供则从 args[0] 参数读取）。")
-	flag.StringVar(&reportPath, "reportPath", "", "分析报告输出目录。若未指定，默认为 ./reports。")
+	flag.StringVar(&reportPath, "reportPath", "", "分析报告输出目录。若未指定，默认为 ./output-report。")
 
 	// 自定义帮助信息
 	flag.Usage = func() {

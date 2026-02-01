@@ -26,7 +26,7 @@ func NewSQLFileParser() *SQLFileParser {
 // Parse 解析SQL文件
 // 参数 path 是SQL文件的路径
 // 返回值: SQL内容字符串和可能的错误
-// 注意：不支持目录，请使用 analyzer 的 AnalyzeDirectory 方法处理目录
+// 注意：不支持目录，请使用 analyzer 的 AnalyzeInput 方法处理目录
 func (p *SQLFileParser) Parse(path string) (string, error) {
 	// 路径检查
 	if path == "" {
@@ -41,7 +41,7 @@ func (p *SQLFileParser) Parse(path string) (string, error) {
 
 	// 不支持目录
 	if fileInfo.IsDir() {
-		return "", fmt.Errorf("不支持目录，请使用 analyzer 的 AnalyzeDirectory 方法")
+		return "", fmt.Errorf("不支持目录，请使用 analyzer 的 AnalyzeInput 方法")
 	}
 
 	// 检查文件扩展名

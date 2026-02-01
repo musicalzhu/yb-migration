@@ -139,22 +139,22 @@ func GetDefaultConfigPath() (string, error) {
 
 // GetDefaultReportPath 返回默认的报告输出目录。
 // 查找顺序：
-// 1. 当前工作目录下的 ./reports（开发时优先）
-// 2. 可执行文件所在目录下的 ./reports（部署时兜底）
+// 1. 当前工作目录下的 ./output-report（开发时优先）
+// 2. 可执行文件所在目录下的 ./output-report（部署时兜底）
 // 该函数永不返回 error，确保程序总能找到一个合理位置。
 func GetDefaultReportPath() string {
 	// 1. 优先使用当前工作目录（开发体验最佳）
 	if wd, err := os.Getwd(); err == nil {
-		return filepath.Join(wd, "reports")
+		return filepath.Join(wd, "output-report")
 	}
 
 	// 2. 使用可执行文件所在目录（部署时兜底）
 	if exe, err := os.Executable(); err == nil {
-		return filepath.Join(filepath.Dir(exe), "reports")
+		return filepath.Join(filepath.Dir(exe), "output-report")
 	}
 
 	// 3. 极端情况下返回相对路径（由 filepath.Abs 处理）
-	return "reports"
+	return "output-report"
 }
 
 // LoadConfig 加载配置文件

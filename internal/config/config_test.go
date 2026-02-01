@@ -215,6 +215,22 @@ func TestGetDefaultReportPath(t *testing.T) {
 		// 测试函数不会 panic
 		reportPath := GetDefaultReportPath()
 		assert.NotEmpty(t, reportPath)
+		assert.Contains(t, reportPath, "output-report")
+	})
+
+	t.Run("use_working_directory", func(t *testing.T) {
+		originalWD, err := os.Getwd()
+		require.NoError(t, err)
+		defer func() {
+			_ = os.Chdir(originalWD)
+		}()
+
+		tmpDir := t.TempDir()
+		err = os.Chdir(tmpDir)
+		require.NoError(t, err)
+
+		reportPath := GetDefaultReportPath()
+		assert.Equal(t, filepath.Join(tmpDir, "output-report"), reportPath)
 	})
 }
 

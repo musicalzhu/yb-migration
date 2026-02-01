@@ -46,7 +46,7 @@ func (p *GeneralLogFileParser) GetNonStandardLines() []string {
 // Parse 解析MySQL general log文件
 // 参数 path 是日志文件的路径
 // 返回值: 提取的SQL语句字符串和可能的错误
-// 注意：不支持目录，请使用 analyzer 的 AnalyzeDirectory 方法处理目录
+// 注意：不支持目录，请使用 analyzer 的 AnalyzeInput 方法处理目录
 func (p *GeneralLogFileParser) Parse(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("文件路径不能为空")
@@ -60,19 +60,12 @@ func (p *GeneralLogFileParser) Parse(path string) (string, error) {
 
 	// 不支持目录
 	if fileInfo.IsDir() {
-		return "", fmt.Errorf("不支持目录，请使用 analyzer 的 AnalyzeDirectory 方法")
+		return "", fmt.Errorf("不支持目录，请使用 analyzer 的 AnalyzeInput 方法")
 	}
 
-	return p.ParseFile(path)
-}
-
-// ParseFile 解析单个日志文件
-// 参数 path 是日志文件的路径
-// 返回值: 提取的SQL语句字符串和可能的错误
-func (p *GeneralLogFileParser) ParseFile(path string) (string, error) {
 	// 检查文件扩展名
 	if !isLogFile(path) {
-		return "", fmt.Errorf("不支持的文件类型: %s，日志文件通常为 .log 或 .txt 扩展名", filepath.Ext(path))
+		return "", fmt.Errorf("不支持的文件类型: %s，日志文件通常为 .log 扩展名", filepath.Ext(path))
 	}
 
 	// 读取文件内容
@@ -157,12 +150,37 @@ func (p *GeneralLogFileParser) parseLogLine(line string) (string, error) {
 }
 
 // isLogFile 检查文件是否为日志文件
+// 参数:
+//   - path: 文件路径
+//
+// 返回值:
+//   - bool: true表示是日志文件，false表示不是
+//
+// 说明:
+//
+//	通过文件扩展名判断，仅支持 .log 文件
 func isLogFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".log" || ext == ".txt" || strings.Contains(strings.ToLower(path), "log")
+	return ext == ".log"
 }
 
 // isIgnoredSQL 检查是否是需要忽略的SQL语句
+// 参数:
+//   - sql: SQL语句字符串
+//
+// 返回值:
+//   - bool: true表示需要忽略，false表示需要处理
+//
+// 实现细节:
+//  1. 转换为大写进行不区分大小写比较
+//  2. 检查SQL前缀是否匹配忽略列表
+//
+// 忽略的SQL类型:
+//   - SET语句: 设置变量
+//   - SHOW语句: 显示信息
+//   - USE语句: 切换数据库
+//   - 事务控制: BEGIN, COMMIT, ROLLBACK
+//   - 系统查询: SELECT DATABASE(), SELECT USER(), SELECT @@
 func isIgnoredSQL(sql string) bool {
 	// 转换为大写以进行不区分大小写的比较
 	upperSQL := strings.ToUpper(strings.TrimSpace(sql))
