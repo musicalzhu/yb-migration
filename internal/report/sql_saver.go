@@ -59,27 +59,3 @@ func SaveTransformedSQL(result model.AnalysisResult, outputPath string) error {
 
 	return nil
 }
-
-// SaveMultipleTransformedSQL 批量保存多个转换后的SQL文件
-// results: 分析结果列表
-// sourcePaths: 对应的源文件路径列表
-// outputDir: 输出目录
-// 返回值: 错误信息
-func SaveMultipleTransformedSQL(results []model.AnalysisResult, sourcePaths []string, outputDir string) error {
-	if len(results) != len(sourcePaths) {
-		return fmt.Errorf("结果数量与路径数量不匹配")
-	}
-
-	for i, result := range results {
-		if result.TransformedSQL == "" {
-			continue // 跳过没有转换内容的文件
-		}
-
-		outputPath := GenerateTransformedSQLPath(sourcePaths[i], outputDir)
-		if err := SaveTransformedSQL(result, outputPath); err != nil {
-			return fmt.Errorf("保存文件 %s 失败: %w", outputPath, err)
-		}
-	}
-
-	return nil
-}
