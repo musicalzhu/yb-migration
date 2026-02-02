@@ -38,7 +38,7 @@
       "transformed_sql": "CREATE TABLE `users` (`id` INT PRIMARY KEY,`name` VARCHAR(255),`tags` JSON);\nSELECT STRING_AGG(`name`, ',') FROM `users`"
     }
   ],
-  "generated_at": "2026-02-02T14:10:17.7661592+08:00",
+  "generated_at": "2026-02-02T14:30:04.8810515+08:00",
   "rule_stats": {
     "total_rules": 11,
     "by_category": {
@@ -51,10 +51,10 @@
   "checker_stats": {
     "total_checkers": 4,
     "checkers": [
+      "DataTypeChecker",
       "SyntaxChecker",
       "CharsetChecker",
-      "FunctionChecker",
-      "DataTypeChecker"
+      "FunctionChecker"
     ]
   }
 }
