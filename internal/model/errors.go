@@ -53,53 +53,6 @@ func (e *AnalysisError) Is(target error) bool {
 	return false
 }
 
-// NewAnalysisError 创建新的分析错误
-func NewAnalysisError(errorType ErrorType, message, source string) *AnalysisError {
-	return &AnalysisError{
-		Type:    errorType,
-		Message: message,
-		Source:  source,
-	}
-}
-
-// NewParseError 创建解析错误
-func NewParseError(message, source, sql string) *AnalysisError {
-	return &AnalysisError{
-		Type:    ErrorTypeParse,
-		Message: message,
-		Source:  source,
-		SQL:     sql,
-	}
-}
-
-// NewTransformError 创建转换错误
-func NewTransformError(message, source, sql string) *AnalysisError {
-	return &AnalysisError{
-		Type:    ErrorTypeTransform,
-		Message: message,
-		Source:  source,
-		SQL:     sql,
-	}
-}
-
-// NewConfigError 创建配置错误
-func NewConfigError(message, source string) *AnalysisError {
-	return &AnalysisError{
-		Type:    ErrorTypeConfig,
-		Message: message,
-		Source:  source,
-	}
-}
-
-// NewFileError 创建文件错误
-func NewFileError(message, source string) *AnalysisError {
-	return &AnalysisError{
-		Type:    ErrorTypeFile,
-		Message: message,
-		Source:  source,
-	}
-}
-
 // 预定义的错误变量，用于 errors.Is 检查
 var (
 	// ErrParse 解析错误
