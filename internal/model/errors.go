@@ -29,6 +29,7 @@ type AnalysisError struct {
 	SQL     string    `json:"sql,omitempty"`
 	Line    int       `json:"line,omitempty"`
 	Column  int       `json:"column,omitempty"`
+	Cause   error     `json:"-"` // 原始错误，不序列化
 }
 
 // Error 实现 error 接口
@@ -41,7 +42,7 @@ func (e *AnalysisError) Error() string {
 
 // Unwrap 支持错误链
 func (e *AnalysisError) Unwrap() error {
-	return nil
+	return e.Cause
 }
 
 // Is 支持错误类型比较

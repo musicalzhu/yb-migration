@@ -43,7 +43,6 @@ Thumbs.db
 
 # Report output directories
 output-report/
-reports/
 
 # Coverage files
 coverage/
