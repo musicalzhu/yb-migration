@@ -409,3 +409,96 @@ last_updated: "2024-01-01T00:00:00Z"
 		assert.Equal(t, "STRING_AGG", rule.Then.Target)
 	})
 }
+
+// ============================================================================
+// 配置使用方式测试（基于原 examples/config_usage_example.go）
+// ============================================================================
+
+// TestConfigUsageExamples 测试配置的多种使用方式
+// 演示如何加载和使用配置，原 examples 目录内容的测试版本
+func TestConfigUsageExamples(t *testing.T) {
+	t.Run("方式1_加载默认配置", func(t *testing.T) {
+		// 加载默认配置
+		defaultConfig, err := LoadConfig("")
+		require.NoError(t, err)
+		require.NotNil(t, defaultConfig)
+
+		// 验证默认配置包含规则
+		assert.Greater(t, len(defaultConfig.GetRules()), 0, "默认配置应包含规则")
+	})
+
+	t.Run("方式2_加载自定义配置文件", func(t *testing.T) {
+		// 加载自定义配置文件
+		customConfig, err := LoadConfig("../../configs/default.yaml")
+		require.NoError(t, err)
+		require.NotNil(t, customConfig)
+
+		// 验证自定义配置包含规则
+		assert.Greater(t, len(customConfig.GetRules()), 0, "自定义配置应包含规则")
+		
+		// 验证与默认配置的关系
+		defaultConfig, err := LoadConfig("")
+		require.NoError(t, err)
+		
+		// 两者应该有相同的规则数量（因为加载的是同一个文件）
+		assert.Equal(t, len(defaultConfig.GetRules()), len(customConfig.GetRules()))
+	})
+
+	t.Run("方式3_按类别获取规则", func(t *testing.T) {
+		// 加载配置
+		cfg, err := LoadConfig("")
+		require.NoError(t, err)
+
+		// 按类别获取规则
+		functionRules := cfg.GetRulesByCategory("function")
+		datatypeRules := cfg.GetRulesByCategory("datatype")
+		syntaxRules := cfg.GetRulesByCategory("syntax")
+		charsetRules := cfg.GetRulesByCategory("charset")
+
+		// 验证各类别规则数量
+		assert.Greater(t, len(functionRules), 0, "应有函数规则")
+		assert.Greater(t, len(datatypeRules), 0, "应有数据类型规则")
+		assert.Greater(t, len(syntaxRules), 0, "应有语法规则")
+		assert.Greater(t, len(charsetRules), 0, "应有字符集规则")
+
+		// 验证规则类别正确性
+		for _, rule := range functionRules {
+			assert.Equal(t, "function", rule.Category, "函数规则类别应正确")
+		}
+		for _, rule := range datatypeRules {
+			assert.Equal(t, "datatype", rule.Category, "数据类型规则类别应正确")
+		}
+		for _, rule := range syntaxRules {
+			assert.Equal(t, "syntax", rule.Category, "语法规则类别应正确")
+		}
+		for _, rule := range charsetRules {
+			assert.Equal(t, "charset", rule.Category, "字符集规则类别应正确")
+		}
+	})
+
+	t.Run("规则详情验证", func(t *testing.T) {
+		// 加载配置
+		cfg, err := LoadConfig("")
+		require.NoError(t, err)
+
+		// 获取函数规则并验证详情
+		functionRules := cfg.GetRulesByCategory("function")
+		require.Greater(t, len(functionRules), 2, "应有至少2个函数规则用于测试")
+
+		// 验证前几个规则的详情
+		for i, rule := range functionRules {
+			if i >= 3 { // 只验证前3个
+				break
+			}
+			
+			// 验证规则基本字段
+			assert.NotEmpty(t, rule.Name, "规则名称不应为空")
+			assert.NotEmpty(t, rule.Description, "规则描述不应为空")
+			assert.NotEmpty(t, rule.When.Pattern, "规则模式不应为空")
+			assert.NotEmpty(t, rule.Then.Action, "规则动作不应为空")
+			
+			// 验证规则类别
+			assert.Equal(t, "function", rule.Category, "函数规则类别应为function")
+		}
+	})
+}
