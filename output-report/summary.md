@@ -4,7 +4,7 @@
 
 - **总分析项数**: 1
 - **总问题数**: 2
-- **报告生成时间**: 2026-02-01 20:34:07
+- **报告生成时间**: 2026-02-02 14:10:17
 
 ## 规则统计
 
@@ -19,22 +19,22 @@
 
 - **总检查器数**: 4
 - **检查器列表**:
-  - **DataTypeChecker**
   - **SyntaxChecker**
   - **CharsetChecker**
   - **FunctionChecker**
+  - **DataTypeChecker**
 
 ## 发现的问题
 
-### 问题 1: FunctionChecker
+### 问题 1: SyntaxChecker
 
-- **描述**: 函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)
+- **描述**: 语法 AUTO_INCREMENT: MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL (建议: SERIAL)
 
 ---
 
-### 问题 2: SyntaxChecker
+### 问题 2: FunctionChecker
 
-- **描述**: 语法 AUTO_INCREMENT: MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL (建议: SERIAL)
+- **描述**: 函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)
 
 ---
 

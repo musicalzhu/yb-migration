@@ -44,6 +44,10 @@ func (s *SyntaxChecker) Inspect(n ast.Node) (w ast.Node, skipChildren bool) {
 		// 检查并转换表名中的反引号
 		return s.checkTableNameQuotes(node)
 
+	case *ast.ColumnName:
+		// 检查并转换列名中的反引号
+		return s.checkColumnNameQuotes(node)
+
 	case *ast.LockTablesStmt:
 		// 检查 LOCK TABLES 语法
 		return s.checkLockTablesSyntax(node)
@@ -137,8 +141,12 @@ func (s *SyntaxChecker) checkTableNameQuotes(node *ast.TableName) (ast.Node, boo
 
 	originalName := node.Name.String()
 	if strings.Contains(originalName, "`") {
-		rule, hasRule := rules["BACKTICK"]
+		// 调试：打印所有加载的规则
+		fmt.Printf("DEBUG: Loaded rules: %v\n", rules)
+
+		rule, hasRule := rules["`"] // 使用 pattern 作为 key
 		if hasRule {
+			fmt.Printf("DEBUG: Found backtick rule: %v\n", rule)
 			// 生成兼容性问题
 			s.AddIssue(model.Issue{
 				Checker: "SyntaxChecker",
@@ -153,6 +161,8 @@ func (s *SyntaxChecker) checkTableNameQuotes(node *ast.TableName) (ast.Node, boo
 			// 执行AST转换
 			transformedNode := s.ApplyTransformation(node, rule)
 			return transformedNode, transformedNode != node
+		} else {
+			fmt.Printf("DEBUG: No backtick rule found in rules\n")
 		}
 	}
 
@@ -188,5 +198,39 @@ func (s *SyntaxChecker) checkUnlockTablesSyntax(node *ast.UnlockTablesStmt) (ast
 		Message: "MySQL UNLOCK TABLES 语法不兼容: UNLOCK TABLES 是 MySQL 特有的表解锁语法，目标数据库可能使用不同的锁定机制或不支持此语法",
 	}
 	s.AddIssue(issue)
+	return node, false
+}
+
+// checkColumnNameQuotes 检查列名中的反引号并执行转换
+// 参数:
+//   - node: 列名节点
+//
+// 返回值:
+//   - ast.Node: 转换后的节点
+//   - bool: 是否有转换发生
+func (s *SyntaxChecker) checkColumnNameQuotes(node *ast.ColumnName) (ast.Node, bool) {
+	rules := s.GetRules()
+
+	originalName := node.Name.String()
+	if strings.Contains(originalName, "`") {
+		rule, hasRule := rules["`"] // 使用 pattern 作为 key
+		if hasRule {
+			// 生成兼容性问题
+			s.AddIssue(model.Issue{
+				Checker: "SyntaxChecker",
+				Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "反引号", rule.Description, rule.Then.Target),
+				AutoFix: model.AutoFix{
+					Available: true,
+					Action:    rule.Then.Action,
+					Code:      fmt.Sprintf("`%s` -> \"%s\"", originalName, strings.ReplaceAll(originalName, "`", "\"")),
+				},
+			})
+
+			// 执行AST转换
+			transformedNode := s.ApplyTransformation(node, rule)
+			return transformedNode, transformedNode != node
+		}
+	}
+
 	return node, false
 }

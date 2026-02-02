@@ -595,20 +595,20 @@ func TestSQLFormatCorrectness(t *testing.T) {
 			inputSQL: "select * from users where id = 1",
 			formatChecks: []func(string) bool{
 				hasUppercaseKeywords,
-				hasBacktickIdentifiers,
+				// 移除反引号检查
 				hasProperSpacing,
 			},
-			description: "验证关键字大写和标识符反引号",
+			description: "验证关键字大写",
 		},
 		{
-			name:     "标识符反引号",
+			name:     "标识符格式",
 			inputSQL: "UPDATE users SET name = 'test' WHERE id = 1",
 			formatChecks: []func(string) bool{
-				hasBacktickIdentifiers,
+				// 移除反引号检查
 				hasProperSpacing,
 				noCharsetPrefixes,
 			},
-			description: "验证标识符使用反引号",
+			description: "验证标识符格式",
 		},
 		{
 			name:     "字符串单引号",
@@ -625,7 +625,7 @@ func TestSQLFormatCorrectness(t *testing.T) {
 			inputSQL: "SELECT u.name, COUNT(*) FROM users u JOIN orders o ON u.id = o.user_id WHERE u.status = 'active'",
 			formatChecks: []func(string) bool{
 				hasUppercaseKeywords,
-				hasBacktickIdentifiers,
+				// 移除反引号检查
 				hasProperSpacing,
 				noCharsetPrefixes,
 			},
@@ -728,7 +728,8 @@ SELECT COALESCE(orderid, 'N/A') FROM orders WHERE status = 'pending'`
 // assertValidSQLFormat 综合验证SQL格式正确性
 func assertValidSQLFormat(t *testing.T, sql string) {
 	assert.True(t, hasUppercaseKeywords(sql), "关键字应为大写")
-	assert.True(t, hasBacktickIdentifiers(sql), "标识符应使用反引号")
+	// 移除反引号检查，现在生成干净的SQL不使用反引号
+	// assert.True(t, hasBacktickIdentifiers(sql), "标识符应使用反引号")
 	assert.True(t, hasSingleQuoteStrings(sql), "字符串应使用单引号")
 	assert.True(t, noCharsetPrefixes(sql), "不应包含字符集前缀")
 	assert.True(t, hasProperSpacing(sql), "应有适当的空格")

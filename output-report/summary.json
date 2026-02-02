@@ -3,12 +3,12 @@
   "total_issues": 2,
   "unique_issues": [
     {
-      "checker": "FunctionChecker",
-      "message": "函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)"
-    },
-    {
       "checker": "SyntaxChecker",
       "message": "语法 AUTO_INCREMENT: MySQL AUTO_INCREMENT 转换为 PostgreSQL SERIAL (建议: SERIAL)"
+    },
+    {
+      "checker": "FunctionChecker",
+      "message": "函数 GROUP_CONCAT: MySQL GROUP_CONCAT 函数转换为标准 SQL STRING_AGG (建议: STRING_AGG)"
     }
   ],
   "results": [
@@ -38,7 +38,7 @@
       "transformed_sql": "CREATE TABLE `users` (`id` INT PRIMARY KEY,`name` VARCHAR(255),`tags` JSON);\nSELECT STRING_AGG(`name`, ',') FROM `users`"
     }
   ],
-  "generated_at": "2026-02-01T20:34:07.271812+08:00",
+  "generated_at": "2026-02-02T14:10:17.7661592+08:00",
   "rule_stats": {
     "total_rules": 11,
     "by_category": {
@@ -51,10 +51,10 @@
   "checker_stats": {
     "total_checkers": 4,
     "checkers": [
-      "DataTypeChecker",
       "SyntaxChecker",
       "CharsetChecker",
-      "FunctionChecker"
+      "FunctionChecker",
+      "DataTypeChecker"
     ]
   }
 }

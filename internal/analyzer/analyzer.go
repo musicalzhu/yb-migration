@@ -161,7 +161,8 @@ func (a *SQLAnalyzer) generateSQL(stmts []ast.StmtNode) (string, error) {
 			// 创建RestoreCtx，配置恢复标志
 			// DefaultRestoreFlags = RestoreStringSingleQuotes | RestoreKeyWordUppercase | RestoreNameBackQuotes
 			// 添加 RestoreStringWithoutCharset 标志来去除 _UTF8MB4 等字符集前缀
-			flags := format.DefaultRestoreFlags | format.RestoreStringWithoutCharset
+			// 移除 RestoreNameBackQuotes 标志，避免自动添加反引号
+			flags := format.RestoreStringSingleQuotes | format.RestoreKeyWordUppercase | format.RestoreStringWithoutCharset
 			ctx := format.NewRestoreCtx(flags, &builder)
 
 			// 调用TiDB的Restore方法生成SQL
