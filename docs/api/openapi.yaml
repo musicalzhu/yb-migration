@@ -1,0 +1,409 @@
+openapi: 3.0.3
+info:
+  title: YB Migration API
+  description: |
+    YB Migration 是一个用于分析和迁移 SQL 语句到 YugaByte DB 兼容格式的工具。
+    虽然主要是一个 CLI 工具，但也提供了编程接口供集成使用。
+  version: 2.0.0
+  contact:
+    name: YB Migration Team
+    url: https://github.com/musicalzhu/yb-migration
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://github.com/musicalzhu/yb-migration
+    description: GitHub 仓库
+
+paths:
+  /cli:
+    get:
+      summary: CLI 工具信息
+      description: 获取命令行工具的基本信息和使用方法
+      operationId: getCliInfo
+      responses:
+        '200':
+          description: 成功返回 CLI 工具信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliInfo'
+              example:
+                name: "YB Migration"
+                version: "2.0.0"
+                description: "SQL 到 YugaByte DB 迁移工具"
+                usage: "./ybMigration [options] <path>"
+
+  /config:
+    get:
+      summary: 配置信息
+      description: 获取配置文件结构和默认值
+      operationId: getConfigInfo
+      responses:
+        '200':
+          description: 成功返回配置信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigInfo'
+
+  /analyzers:
+    get:
+      summary: 分析器列表
+      description: 获取所有可用的分析器和检查器
+      operationId: getAnalyzers
+      responses:
+        '200':
+          description: 成功返回分析器列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Analyzer'
+
+  /reports:
+    get:
+      summary: 报告格式
+      description: 获取支持的报告格式和输出选项
+      operationId: getReportFormats
+      responses:
+        '200':
+          description: 成功返回报告格式信息
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportFormat'
+
+components:
+  schemas:
+    CliInfo:
+      type: object
+      required:
+        - name
+        - version
+        - description
+      properties:
+        name:
+          type: string
+          description: 工具名称
+          example: "YB Migration"
+        version:
+          type: string
+          description: 版本号
+          example: "2.0.0"
+        description:
+          type: string
+          description: 工具描述
+          example: "SQL 到 YugaByte DB 迁移工具"
+        usage:
+          type: string
+          description: 使用方法
+          example: "./ybMigration [options] <path>"
+        exitCodes:
+          type: object
+          description: 退出状态码
+          properties:
+            success:
+              type: integer
+              example: 0
+            invalidArgs:
+              type: integer
+              example: 1
+            configError:
+              type: integer
+              example: 2
+            analysisError:
+              type: integer
+              example: 3
+
+    ConfigInfo:
+      type: object
+      required:
+        - structure
+        - defaultPaths
+      properties:
+        structure:
+          type: object
+          description: 配置文件结构
+          properties:
+            rules:
+              type: array
+              items:
+                $ref: '#/components/schemas/Rule'
+        defaultPaths:
+          type: array
+          description: 默认配置文件查找路径
+          items:
+            type: string
+          example:
+            - "./config.yaml"
+            - "~/.yb-migration/config.yaml"
+            - "/etc/yb-migration/config.yaml"
+
+    Rule:
+      type: object
+      required:
+        - name
+        - category
+        - enabled
+      properties:
+        name:
+          type: string
+          description: 规则名称
+          example: "function_incompatibility"
+        category:
+          type: string
+          description: 规则类别
+          example: "function"
+        description:
+          type: string
+          description: 规则描述
+          example: "检查不兼容的函数调用"
+        enabled:
+          type: boolean
+          description: 是否启用
+          example: true
+        severity:
+          type: string
+          description: 严重程度
+          enum: [error, warning, info]
+          example: "error"
+        parameters:
+          type: object
+          description: 规则参数
+          additionalProperties: true
+
+    Analyzer:
+      type: object
+      required:
+        - name
+        - category
+        - description
+      properties:
+        name:
+          type: string
+          description: 分析器名称
+          example: "FunctionChecker"
+        category:
+          type: string
+          description: 分析器类别
+          example: "function"
+        description:
+          type: string
+          description: 分析器描述
+          example: "检查不兼容的函数调用"
+        supportedDatabases:
+          type: array
+          description: 支持的数据库
+          items:
+            type: string
+          example:
+            - "mysql"
+            - "postgresql"
+        issues:
+          type: array
+          description: 可能检测到的问题类型
+          items:
+            type: string
+          example:
+            - "函数不兼容"
+            - "参数类型不匹配"
+
+    ReportFormat:
+      type: object
+      required:
+        - format
+        - extension
+        - description
+      properties:
+        format:
+          type: string
+          description: 报告格式
+          example: "JSON"
+        extension:
+          type: string
+          description: 文件扩展名
+          example: ".json"
+        description:
+          type: string
+          description: 格式描述
+          example: "结构化数据格式"
+        mimeType:
+          type: string
+          description: MIME 类型
+          example: "application/json"
+        features:
+          type: array
+          description: 支持的特性
+          items:
+            type: string
+          example:
+            - "结构化数据"
+            - "程序化处理"
+            - "完整信息"
+
+    AnalysisResult:
+      type: object
+      required:
+        - inputPath
+        - summary
+      properties:
+        inputPath:
+          type: string
+          description: 输入文件路径
+          example: "/path/to/input.sql"
+        sqlStatements:
+          type: array
+          description: SQL 语句列表
+          items:
+            $ref: '#/components/schemas/SQLStatement'
+        issues:
+          type: array
+          description: 发现的问题列表
+          items:
+            $ref: '#/components/schemas/Issue'
+        transformations:
+          type: array
+          description: 转换建议列表
+          items:
+            $ref: '#/components/schemas/Transformation'
+        summary:
+          $ref: '#/components/schemas/AnalysisSummary'
+
+    SQLStatement:
+      type: object
+      required:
+        - content
+        - type
+        - lineNumber
+      properties:
+        content:
+          type: string
+          description: SQL 语句内容
+          example: "SELECT NOW() FROM users;"
+        type:
+          type: string
+          description: 语句类型
+          example: "SELECT"
+        lineNumber:
+          type: integer
+          description: 行号
+          example: 1
+        startPosition:
+          type: integer
+          description: 开始位置
+          example: 0
+        endPosition:
+          type: integer
+          description: 结束位置
+          example: 22
+
+    Issue:
+      type: object
+      required:
+        - checker
+        - severity
+        - message
+      properties:
+        checker:
+          type: string
+          description: 检查器名称
+          example: "FunctionChecker"
+        severity:
+          type: string
+          description: 严重程度
+          enum: [error, warning, info]
+          example: "error"
+        message:
+          type: string
+          description: 问题描述
+          example: "函数 NOW() 在 YugaByte DB 中不兼容"
+        lineNumber:
+          type: integer
+          description: 行号
+          example: 1
+        column:
+          type: integer
+          description: 列号
+          example: 7
+        suggestion:
+          type: string
+          description: 修复建议
+          example: "使用 CURRENT_TIMESTAMP 替代 NOW()"
+
+    Transformation:
+      type: object
+      required:
+        - original
+        - transformed
+        - reason
+      properties:
+        original:
+          type: string
+          description: 原始 SQL
+          example: "SELECT NOW() FROM users;"
+        transformed:
+          type: string
+          description: 转换后的 SQL
+          example: "SELECT CURRENT_TIMESTAMP FROM users;"
+        reason:
+          type: string
+          description: 转换原因
+          example: "NOW() 函数不兼容，使用 CURRENT_TIMESTAMP 替代"
+
+    AnalysisSummary:
+      type: object
+      required:
+        - totalStatements
+        - totalIssues
+        - issuesBySeverity
+      properties:
+        totalStatements:
+          type: integer
+          description: 总语句数
+          example: 10
+        totalIssues:
+          type: integer
+          description: 总问题数
+          example: 3
+        issuesBySeverity:
+          type: object
+          description: 按严重程度分组的问题数
+          properties:
+            error:
+              type: integer
+              example: 1
+            warning:
+              type: integer
+              example: 2
+            info:
+              type: integer
+              example: 0
+        issuesByCategory:
+          type: object
+          description: 按类别分组的问题数
+          additionalProperties:
+            type: integer
+          example:
+            function: 2
+            datatype: 1
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+tags:
+  - name: CLI
+    description: 命令行工具相关接口
+  - name: Configuration
+    description: 配置相关接口
+  - name: Analysis
+    description: 分析相关接口
+  - name: Reports
+    description: 报告相关接口

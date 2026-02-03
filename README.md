@@ -47,7 +47,12 @@ yb-migration/
 ├── go.mod                 # Go 模块定义
 ├── go.sum                 # 依赖校验
 ├── README.md              # 项目文档
-├── TESTING.md             # 测试指南
+├── docs/                  # 项目文档
+│   ├── API.md             # API 文档
+│   ├── ADR/               # 架构决策记录
+│   ├── DEVELOPMENT.md     # 开发者指南
+│   ├── WORKFLOW.md        # 开发工作流程
+│   └── TESTING.md         # 测试指南
 └── .gitlab-ci.yml         # CI/CD 配置
 ```
 
@@ -422,6 +427,14 @@ func TestNewChecker_Check(t *testing.T) {
    go test -v ./...
    golangci-lint run ./...
    ```
+
+### 文档资源
+
+- **[API 文档](docs/API.md)**: 详细的 API 接口文档
+- **[开发者指南](docs/DEVELOPMENT.md)**: 完整的开发指南和最佳实践
+- **[开发工作流程](docs/WORKFLOW.md)**: 详细的开发流程和 CI/CD 配置
+- **[架构决策记录](docs/adr/)**: 重要的架构决策和设计选择
+- **[测试指南](docs/TESTING.md)**: 测试策略和最佳实践
 6. **提交更改**
    ```bash
    git commit -m "feat: add new feature"
