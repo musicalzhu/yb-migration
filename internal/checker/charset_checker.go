@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pingcap/tidb/pkg/parser/ast"
+
 	"github.com/example/ybMigration/internal/config"
 	"github.com/example/ybMigration/internal/model"
-	"github.com/pingcap/tidb/pkg/parser/ast"
 )
 
 // CharsetChecker 字符集检查器
@@ -79,13 +80,8 @@ func (c *CharsetChecker) checkTableCharset(node *ast.CreateTableStmt) (ast.Node,
 
 	hasTransform := false
 	for _, opt := range node.Options {
-		// opt 已经是 *ast.TableOption 类型，不需要类型断言
-		if opt.Tp == TableOptionCharacterSet || opt.Tp == TableOptionCollate { // CHARACTER SET || COLLATE
-			charsetValue := opt.StrValue
-			if transformedNode, transformed := c.checkCharsetRule(opt, charsetValue, int(opt.Tp)); transformed {
-				*opt = *transformedNode.(*ast.TableOption)
-				hasTransform = true
-			}
+		if c.processCharsetOption(opt) {
+			hasTransform = true
 		}
 	}
 
@@ -111,15 +107,19 @@ func (c *CharsetChecker) checkColumnCharset(node *ast.ColumnDef) (ast.Node, bool
 
 	if charset != "" {
 		if transformedNode, transformed := c.checkCharsetRule(node, charset, TableOptionCharacterSet); transformed {
-			*node = *transformedNode.(*ast.ColumnDef)
-			hasTransform = true
+			if colDef, ok := transformedNode.(*ast.ColumnDef); ok {
+				*node = *colDef
+				hasTransform = true
+			}
 		}
 	}
 
 	if collate != "" {
 		if transformedNode, transformed := c.checkCharsetRule(node, collate, TableOptionCollate); transformed {
-			*node = *transformedNode.(*ast.ColumnDef)
-			hasTransform = true
+			if colDef, ok := transformedNode.(*ast.ColumnDef); ok {
+				*node = *colDef
+				hasTransform = true
+			}
 		}
 	}
 
@@ -138,47 +138,126 @@ func (c *CharsetChecker) checkAlterTableCharset(node *ast.AlterTableStmt) (ast.N
 
 	// 遍历ALTER TABLE中的所有变更项
 	for _, spec := range node.Specs {
-		// spec 已经是 *ast.AlterTableSpec 类型，不需要类型断言
-		switch spec.Tp {
-		case ast.AlterTableAddColumns:
-			// 检查新增列的字符集
-			if spec.NewColumns != nil {
-				for _, col := range spec.NewColumns {
-					if transformedNode, transformed := c.checkColumnCharset(col); transformed {
-						*col = *transformedNode.(*ast.ColumnDef)
-						hasTransform = true
-					}
-				}
-			}
-
-		case ast.AlterTableModifyColumn, ast.AlterTableChangeColumn:
-			// 检查修改列的字符集
-			if len(spec.NewColumns) > 0 {
-				col := spec.NewColumns[0]
-				if transformedNode, transformed := c.checkColumnCharset(col); transformed {
-					*col = *transformedNode.(*ast.ColumnDef)
-					hasTransform = true
-				}
-			}
-
-		case ast.AlterTableOption:
-			// 检查表选项变更中的字符集设置
-			if spec.Options != nil {
-				for _, opt := range spec.Options {
-					// opt 已经是 *ast.TableOption 类型，不需要类型断言
-					if opt.Tp == TableOptionCharacterSet || opt.Tp == TableOptionCollate { // CHARACTER SET || COLLATE
-						charsetValue := opt.StrValue
-						if transformedNode, transformed := c.checkCharsetRule(opt, charsetValue, int(opt.Tp)); transformed {
-							*opt = *transformedNode.(*ast.TableOption)
-							hasTransform = true
-						}
-					}
-				}
-			}
+		if transformed := c.processAlterTableSpec(spec); transformed {
+			hasTransform = true
 		}
 	}
 
 	return node, hasTransform
+}
+
+// processAlterTableSpec 处理单个 ALTER TABLE 规范
+// 参数:
+//   - spec: ALTER TABLE 规范节点
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (c *CharsetChecker) processAlterTableSpec(spec *ast.AlterTableSpec) bool {
+	switch spec.Tp {
+	case ast.AlterTableAddColumns:
+		return c.processAddColumns(spec)
+	case ast.AlterTableModifyColumn, ast.AlterTableChangeColumn:
+		return c.processModifyColumn(spec)
+	case ast.AlterTableOption:
+		return c.processTableOptions(spec)
+	default:
+		return false
+	}
+}
+
+// processAddColumns 处理添加列操作
+// 参数:
+//   - spec: ALTER TABLE 规范节点
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (c *CharsetChecker) processAddColumns(spec *ast.AlterTableSpec) bool {
+	if spec.NewColumns == nil {
+		return false
+	}
+	return c.processColumns(spec.NewColumns)
+}
+
+// processModifyColumn 处理修改列操作
+// 参数:
+//   - spec: ALTER TABLE 规范节点
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (c *CharsetChecker) processModifyColumn(spec *ast.AlterTableSpec) bool {
+	if len(spec.NewColumns) == 0 {
+		return false
+	}
+	return c.processColumns(spec.NewColumns)
+}
+
+// processTableOptions 处理表选项操作
+// 参数:
+//   - spec: ALTER TABLE 规范节点
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (c *CharsetChecker) processTableOptions(spec *ast.AlterTableSpec) bool {
+	if spec.Options == nil {
+		return false
+	}
+
+	hasTransform := false
+	for _, opt := range spec.Options {
+		if c.processCharsetOption(opt) {
+			hasTransform = true
+		}
+	}
+	return hasTransform
+}
+
+// isCharsetOption 检查是否为字符集相关选项
+// 参数:
+//   - opt: 表选项节点
+//
+// 返回值:
+//   - bool: 是否为字符集选项
+func (c *CharsetChecker) isCharsetOption(opt *ast.TableOption) bool {
+	return opt.Tp == TableOptionCharacterSet || opt.Tp == TableOptionCollate
+}
+
+// processCharsetOption 处理单个字符集选项
+// 参数:
+//   - opt: 表选项节点
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (c *CharsetChecker) processCharsetOption(opt *ast.TableOption) bool {
+	if !c.isCharsetOption(opt) {
+		return false
+	}
+
+	if transformedNode, transformed := c.checkCharsetRule(opt, opt.StrValue, int(opt.Tp)); transformed {
+		if tableOption, ok := transformedNode.(*ast.TableOption); ok {
+			*opt = *tableOption
+			return true
+		}
+	}
+	return false
+}
+
+// processColumns 处理列数组中的字符集设置
+// 参数:
+//   - columns: 列定义数组
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (c *CharsetChecker) processColumns(columns []*ast.ColumnDef) bool {
+	hasTransform := false
+	for _, col := range columns {
+		if transformedNode, transformed := c.checkColumnCharset(col); transformed {
+			if colDef, ok := transformedNode.(*ast.ColumnDef); ok {
+				*col = *colDef
+				hasTransform = true
+			}
+		}
+	}
+	return hasTransform
 }
 
 // checkCharsetRule 检查字符集规则并执行转换

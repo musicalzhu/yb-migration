@@ -8,13 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/example/ybMigration/internal/checker"
 	inputparser "github.com/example/ybMigration/internal/input-parser"
 	"github.com/example/ybMigration/internal/model"
 	"github.com/example/ybMigration/internal/report"
 	sqlparser "github.com/example/ybMigration/internal/sql-parser"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestNewSQLAnalyzer 测试SQL分析器创建
@@ -80,7 +81,7 @@ func TestAnalyzeSQLWithOutput(t *testing.T) {
 	// 验证文件存在且内容正确
 	assert.FileExists(t, outputPath)
 
-	content, err := os.ReadFile(outputPath)
+	content, err := os.ReadFile(outputPath) //nolint:gosec
 	require.NoError(t, err)
 	assert.NotEmpty(t, content)
 
@@ -700,7 +701,7 @@ SELECT COALESCE(orderid, 'N/A') FROM orders WHERE status = 'pending'`
 	require.NoError(t, err)
 
 	// 读取文件内容
-	content, err := os.ReadFile(outputPath)
+	content, err := os.ReadFile(outputPath) //nolint:gosec
 	require.NoError(t, err)
 
 	savedSQL := string(content)
@@ -748,27 +749,22 @@ func hasUppercaseKeywords(sql string) bool {
 	return false
 }
 
-// hasBacktickIdentifiers 检查标识符是否使用反引号
-func hasBacktickIdentifiers(sql string) bool {
-	return strings.Contains(sql, "`") && strings.Count(sql, "`")%2 == 0
-}
-
 // containsIdentifier 灵活检查标识符，支持有或没有反引号
 func containsIdentifier(sql, identifier string) bool {
 	// 如果identifier本身包含反引号，先提取纯标识符名
 	cleanIdentifier := strings.Trim(identifier, "`")
-	
+
 	// 检查无反引号的标识符
 	if strings.Contains(sql, cleanIdentifier) {
 		return true
 	}
-	
+
 	// 检查有反引号的标识符
 	backtickedIdentifier := fmt.Sprintf("`%s`", cleanIdentifier)
 	if strings.Contains(sql, backtickedIdentifier) {
 		return true
 	}
-	
+
 	// 检查表别名形式（如 `u`.`name` 或 u.name）
 	if strings.Contains(cleanIdentifier, ".") {
 		parts := strings.Split(cleanIdentifier, ".")
@@ -778,7 +774,7 @@ func containsIdentifier(sql, identifier string) bool {
 			if strings.Contains(sql, aliasedForm) {
 				return true
 			}
-			
+
 			// 检查有反引号的别名形式
 			aliasedFormWithBackticks := fmt.Sprintf("`%s`.`%s`", parts[0], parts[1])
 			if strings.Contains(sql, aliasedFormWithBackticks) {
@@ -786,7 +782,7 @@ func containsIdentifier(sql, identifier string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 

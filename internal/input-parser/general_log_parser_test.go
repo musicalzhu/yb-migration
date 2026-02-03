@@ -129,7 +129,7 @@ func assertContainsAll(t *testing.T, s string, subs ...string) {
 //   - 写入失败时调用 t.Fatalf 终止测试
 func requireWriteFile(t *testing.T, path string, content string) {
 	t.Helper()
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("write temp file failed: %v", err)
 	}

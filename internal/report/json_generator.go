@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/example/ybMigration/internal/constants"
 	"github.com/example/ybMigration/internal/model"
 )
 
@@ -20,7 +21,7 @@ func (g *JSONGenerator) Write(path string, report model.Report) error {
 	}
 
 	// 写入文件
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, constants.FilePermission); err != nil {
 		return fmt.Errorf("写入文件失败: %w", err)
 	}
 

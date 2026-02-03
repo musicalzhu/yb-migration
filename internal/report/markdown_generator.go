@@ -13,7 +13,12 @@ type MarkdownGenerator struct{}
 
 // Write 将报告写入 Markdown 文件
 func (g *MarkdownGenerator) Write(path string, report model.Report) error {
-	f, err := os.Create(path)
+	// 验证文件路径安全性
+	if err := validateOutputPath(path); err != nil {
+		return fmt.Errorf("不安全的文件路径: %w", err)
+	}
+
+	f, err := os.Create(path) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %w", err)
 	}

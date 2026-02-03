@@ -49,7 +49,7 @@ func (p *SQLFileParser) Parse(path string) (string, error) {
 		return "", fmt.Errorf("不支持的文件类型: %s，仅支持 .sql 文件", ext)
 	}
 
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("读取文件 %s 失败: %w", path, err)
 	}

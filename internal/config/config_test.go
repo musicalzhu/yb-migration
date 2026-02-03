@@ -156,7 +156,7 @@ func TestResolveFilePath(t *testing.T) {
 	t.Run("valid_file", func(t *testing.T) {
 		// 创建临时文件
 		tmpFile := filepath.Join(t.TempDir(), "test.yaml")
-		err := os.WriteFile(tmpFile, []byte("test: content"), 0644)
+		err := os.WriteFile(tmpFile, []byte("test: content"), 0600)
 		require.NoError(t, err)
 
 		resolvedPath, err := ResolveFilePath(tmpFile, "测试文件")
@@ -168,7 +168,7 @@ func TestResolveFilePath(t *testing.T) {
 		// 创建临时文件
 		tmpDir := t.TempDir()
 		tmpFile := filepath.Join(tmpDir, "test.yaml")
-		err := os.WriteFile(tmpFile, []byte("test: content"), 0644)
+		err := os.WriteFile(tmpFile, []byte("test: content"), 0600)
 		require.NoError(t, err)
 
 		// 切换到临时目录
@@ -269,7 +269,7 @@ rules:
       target: "REPLACED_FUNC"
 last_updated: "2024-01-01"
 `
-		err := os.WriteFile(tmpFile, []byte(configContent), 0644)
+		err := os.WriteFile(tmpFile, []byte(configContent), 0600)
 		require.NoError(t, err)
 
 		// 加载配置
@@ -294,7 +294,7 @@ rules:
     description: "测试规则"
     invalid_yaml: [
 `
-		err := os.WriteFile(tmpFile, []byte(invalidContent), 0644)
+		err := os.WriteFile(tmpFile, []byte(invalidContent), 0600)
 		require.NoError(t, err)
 
 		// 加载配置应该失败
@@ -307,7 +307,7 @@ rules:
 	t.Run("load_empty_file", func(t *testing.T) {
 		// 创建空文件
 		tmpFile := filepath.Join(t.TempDir(), "empty.yaml")
-		err := os.WriteFile(tmpFile, []byte(""), 0644)
+		err := os.WriteFile(tmpFile, []byte(""), 0600)
 		require.NoError(t, err)
 
 		// 加载配置
@@ -324,7 +324,7 @@ rules:
 last_updated: "2024-01-01"
 other_field: "value"
 `
-		err := os.WriteFile(tmpFile, []byte(content), 0644)
+		err := os.WriteFile(tmpFile, []byte(content), 0600)
 		require.NoError(t, err)
 
 		// 加载配置
@@ -374,7 +374,7 @@ rules:
       target: "SERIAL"
 last_updated: "2024-01-01T00:00:00Z"
 `
-		err := os.WriteFile(tmpFile, []byte(configContent), 0644)
+		err := os.WriteFile(tmpFile, []byte(configContent), 0600)
 		require.NoError(t, err)
 
 		// 加载配置
@@ -435,11 +435,11 @@ func TestConfigUsageExamples(t *testing.T) {
 
 		// 验证自定义配置包含规则
 		assert.Greater(t, len(customConfig.GetRules()), 0, "自定义配置应包含规则")
-		
+
 		// 验证与默认配置的关系
 		defaultConfig, err := LoadConfig("")
 		require.NoError(t, err)
-		
+
 		// 两者应该有相同的规则数量（因为加载的是同一个文件）
 		assert.Equal(t, len(defaultConfig.GetRules()), len(customConfig.GetRules()))
 	})
@@ -490,13 +490,13 @@ func TestConfigUsageExamples(t *testing.T) {
 			if i >= 3 { // 只验证前3个
 				break
 			}
-			
+
 			// 验证规则基本字段
 			assert.NotEmpty(t, rule.Name, "规则名称不应为空")
 			assert.NotEmpty(t, rule.Description, "规则描述不应为空")
 			assert.NotEmpty(t, rule.When.Pattern, "规则模式不应为空")
 			assert.NotEmpty(t, rule.Then.Action, "规则动作不应为空")
-			
+
 			// 验证规则类别
 			assert.Equal(t, "function", rule.Category, "函数规则类别应为function")
 		}

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pingcap/tidb/pkg/parser/ast"
+
 	"github.com/example/ybMigration/internal/config"
 	"github.com/example/ybMigration/internal/model"
-	"github.com/pingcap/tidb/pkg/parser/ast"
 )
 
 // FunctionChecker 函数检查器

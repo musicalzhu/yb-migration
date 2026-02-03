@@ -183,7 +183,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	// 读取配置文件
-	file, err := os.ReadFile(configPath)
+	file, err := os.ReadFile(configPath) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("读取配置文件失败: %w", err)
 	}

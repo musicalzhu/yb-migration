@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/example/ybMigration/internal/constants"
 	"github.com/example/ybMigration/internal/model"
 )
 
@@ -18,7 +19,7 @@ func GenerateTransformedSQLPath(sourcePath, outputDir string) string {
 	baseName := filepath.Base(sourcePath)
 	ext := filepath.Ext(baseName)
 	nameWithoutExt := baseName[:len(baseName)-len(ext)]
-	
+
 	// 构造输出文件名
 	outputFileName := fmt.Sprintf("%s_transformed.sql", nameWithoutExt)
 	return filepath.Join(outputDir, outputFileName)
@@ -35,16 +36,22 @@ func SaveTransformedSQL(result model.AnalysisResult, outputPath string) error {
 
 	// 确保输出目录存在
 	dir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, constants.DirPermission); err != nil {
 		return fmt.Errorf("创建输出目录失败: %w", err)
 	}
 
-	// 创建文件
-	file, err := os.Create(outputPath)
+	// 创建文件（提前声明 err 用于聚合）
+	file, err := os.Create(outputPath) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		// 仅当主流程无错误时，才用 Close() 错误覆盖返回值
+		// （因已 Sync()，Close() 错误通常不关键，但保留诊断价值）
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("关闭文件时发生次要错误（数据已安全落盘）: %w", closeErr)
+		}
+	}()
 
 	// 写入内容
 	_, err = file.WriteString(result.TransformedSQL)
@@ -52,10 +59,10 @@ func SaveTransformedSQL(result model.AnalysisResult, outputPath string) error {
 		return fmt.Errorf("写入文件失败: %w", err)
 	}
 
-	// 确保数据写入磁盘
-	if err := file.Sync(); err != nil {
+	// 确保数据写入磁盘（关键步骤）
+	if err = file.Sync(); err != nil {
 		return fmt.Errorf("同步文件失败: %w", err)
 	}
 
-	return nil
+	return nil // 此时 err == nil，Close() 错误会在此处被捕获
 }

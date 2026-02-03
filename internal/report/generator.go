@@ -146,7 +146,7 @@ func collectUniqueIssues(issues []model.Issue) []model.UniqueIssue {
 		uniqueIssues[uniqueIssue] = true
 	}
 
-	var result []model.UniqueIssue
+	result := make([]model.UniqueIssue, 0, len(uniqueIssues))
 	for issue := range uniqueIssues {
 		result = append(result, issue)
 	}

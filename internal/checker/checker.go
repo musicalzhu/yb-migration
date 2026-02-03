@@ -7,11 +7,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/example/ybMigration/internal/config"
-	"github.com/example/ybMigration/internal/model"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
 	"github.com/pingcap/tidb/pkg/parser/types"
+
+	"github.com/example/ybMigration/internal/config"
+	"github.com/example/ybMigration/internal/model"
 )
 
 // Checker 检查器接口

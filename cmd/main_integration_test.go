@@ -6,12 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/example/ybMigration/internal/analyzer"
-	report "github.com/example/ybMigration/internal/report"
-	sqlparser "github.com/example/ybMigration/internal/sql-parser"
-	"github.com/example/ybMigration/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/example/ybMigration/internal/analyzer"
+	"github.com/example/ybMigration/internal/report"
+	sqlparser "github.com/example/ybMigration/internal/sql-parser"
+	"github.com/example/ybMigration/internal/testutils"
 )
 
 // ============================================================================
@@ -30,7 +31,7 @@ func TestMain_Integration_ValidSQLFile(t *testing.T) {
 	}
 
 	// 确保目录存在
-	err = os.MkdirAll(reportPath, 0755)
+	err = os.MkdirAll(reportPath, 0750)
 	require.NoError(t, err, "应能创建输出目录")
 
 	// 使用 testutils 获取测试数据路径
@@ -54,7 +55,7 @@ func TestMain_Integration_ValidSQLFile(t *testing.T) {
 	assert.FileExists(t, summaryPath, "应生成 summary.json 报告")
 
 	// 验证报告内容
-	data, err := os.ReadFile(summaryPath)
+	data, err := os.ReadFile(summaryPath) //nolint:gosec
 	require.NoError(t, err, "应能读取 summary.json")
 
 	var summary map[string]interface{}
@@ -72,27 +73,32 @@ func TestMain_Integration_ValidSQLFile(t *testing.T) {
 	assert.Greater(t, len(results), 0, "应至少包含一个 result")
 
 	// 验证第一个 result 结构
-	firstResult := results[0].(map[string]interface{})
+	firstResult, ok := results[0].(map[string]interface{})
+	require.True(t, ok, "第一个 result 应为 map[string]interface{} 类型")
 	assert.Contains(t, firstResult, "sql", "result 应包含 sql 字段")
 	assert.Contains(t, firstResult, "issues", "result 应包含 issues 字段")
 	assert.Contains(t, firstResult, "source", "result 应包含 source 字段")
 
 	// 验证 issues 数组
-	issues := firstResult["issues"].([]interface{})
+	issues, ok := firstResult["issues"].([]interface{})
+	require.True(t, ok, "issues 应为数组类型")
 	assert.Greater(t, len(issues), 0, "应至少包含一个 issue")
 
 	// 验证 issue 结构
-	issue := issues[0].(map[string]interface{})
+	issue, ok := issues[0].(map[string]interface{})
+	require.True(t, ok, "第一个 issue 应为 map[string]interface{} 类型")
 	assert.Contains(t, issue, "checker", "issue 应包含 checker 字段")
 	assert.Contains(t, issue, "message", "issue 应包含 message 字段")
 
 	// 验证规则统计
-	ruleStats := summary["rule_stats"].(map[string]interface{})
+	ruleStats, ok := summary["rule_stats"].(map[string]interface{})
+	require.True(t, ok, "rule_stats 应为 map[string]interface{} 类型")
 	assert.Contains(t, ruleStats, "total_rules", "应包含总规则数")
 	assert.Contains(t, ruleStats, "by_category", "应包含按类别统计")
 
 	// 验证检查器统计
-	checkerStats := summary["checker_stats"].(map[string]interface{})
+	checkerStats, ok := summary["checker_stats"].(map[string]interface{})
+	require.True(t, ok, "checker_stats 应为 map[string]interface{} 类型")
 	assert.Contains(t, checkerStats, "total_checkers", "应包含总检查器数")
 	assert.Contains(t, checkerStats, "checkers", "应包含检查器列表")
 
@@ -111,7 +117,7 @@ func TestMain_Integration_LogFile(t *testing.T) {
 	}
 
 	// 确保目录存在
-	err = os.MkdirAll(reportPath, 0755)
+	err = os.MkdirAll(reportPath, 0750)
 	require.NoError(t, err, "应能创建输出目录")
 
 	configPath := testutils.MustGetTestDataPath("../configs/default.yaml")
@@ -134,7 +140,7 @@ func TestMain_Integration_LogFile(t *testing.T) {
 	assert.FileExists(t, summaryPath, "应生成 summary.json 报告")
 
 	// 验证报告内容
-	data, err := os.ReadFile(summaryPath)
+	data, err := os.ReadFile(summaryPath) //nolint:gosec
 	require.NoError(t, err, "应能读取 summary.json")
 
 	var summary map[string]interface{}
@@ -142,13 +148,17 @@ func TestMain_Integration_LogFile(t *testing.T) {
 	require.NoError(t, err, "summary.json 应为有效 JSON")
 
 	// 验证从日志中提取的 SQL
-	results := summary["results"].([]interface{})
-	firstResult := results[0].(map[string]interface{})
-	issues := firstResult["issues"].([]interface{})
+	results, ok := summary["results"].([]interface{})
+	require.True(t, ok, "results 应为数组类型")
+	firstResult, ok := results[0].(map[string]interface{})
+	require.True(t, ok, "第一个 result 应为 map[string]interface{} 类型")
+	issues, ok := firstResult["issues"].([]interface{})
+	require.True(t, ok, "issues 应为数组类型")
 	assert.GreaterOrEqual(t, len(issues), 1, "应至少包含一个 issue")
 
 	// 验证转换后的SQL不包含字符集前缀
-	transformedSQL := firstResult["transformed_sql"].(string)
+	transformedSQL, ok := firstResult["transformed_sql"].(string)
+	require.True(t, ok, "transformed_sql 应为字符串类型")
 	charsetPrefixes := []string{"_UTF8MB4", "_utf8", "_LATIN1", "_latin1", "_binary"}
 	for _, prefix := range charsetPrefixes {
 		assert.NotContains(t, transformedSQL, prefix,
@@ -171,7 +181,7 @@ func TestMain_Integration_Directory(t *testing.T) {
 	}
 
 	// 确保目录存在
-	err = os.MkdirAll(reportPath, 0755)
+	err = os.MkdirAll(reportPath, 0750)
 	require.NoError(t, err, "应能创建输出目录")
 
 	configPath := testutils.MustGetTestDataPath("../configs/default.yaml")
@@ -194,7 +204,7 @@ func TestMain_Integration_Directory(t *testing.T) {
 	assert.FileExists(t, summaryPath, "应生成 summary.json 报告")
 
 	// 验证报告内容
-	data, err := os.ReadFile(summaryPath)
+	data, err := os.ReadFile(summaryPath) //nolint:gosec
 	require.NoError(t, err, "应能读取 summary.json")
 
 	var summary map[string]interface{}
@@ -202,11 +212,14 @@ func TestMain_Integration_Directory(t *testing.T) {
 	require.NoError(t, err, "summary.json 应为有效 JSON")
 
 	// 验证从目录中分析到的问题
-	results := summary["results"].([]interface{})
+	results, ok := summary["results"].([]interface{})
+	require.True(t, ok, "results 应为数组类型")
 	var allIssues []interface{}
 	for _, result := range results {
-		resultMap := result.(map[string]interface{})
-		issues := resultMap["issues"].([]interface{})
+		resultMap, ok := result.(map[string]interface{})
+		require.True(t, ok, "result 应为 map[string]interface{} 类型")
+		issues, ok := resultMap["issues"].([]interface{})
+		require.True(t, ok, "issues 应为数组类型")
 		allIssues = append(allIssues, issues...)
 	}
 	assert.GreaterOrEqual(t, len(allIssues), 2, "应至少包含两个 issue（SQL文件和日志文件）")
@@ -226,7 +239,7 @@ func TestMain_Integration_MultipleReportFormats(t *testing.T) {
 	}
 
 	// 确保目录存在
-	err = os.MkdirAll(reportPath, 0755)
+	err = os.MkdirAll(reportPath, 0750)
 	require.NoError(t, err, "应能创建输出目录")
 
 	configPath := testutils.MustGetTestDataPath("../configs/default.yaml")
@@ -249,7 +262,7 @@ func TestMain_Integration_MultipleReportFormats(t *testing.T) {
 	assert.FileExists(t, summaryPath, "应生成 summary.json 报告")
 
 	// 验证报告内容
-	data, err := os.ReadFile(summaryPath)
+	data, err := os.ReadFile(summaryPath) //nolint:gosec
 	require.NoError(t, err, "应能读取 summary.json")
 
 	var summary map[string]interface{}

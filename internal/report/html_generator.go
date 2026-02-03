@@ -39,8 +39,13 @@ func (g *HTMLGenerator) Write(path string, report model.Report) error {
 		return fmt.Errorf("解析模板失败: %w", err)
 	}
 
+	// 验证文件路径安全性
+	if err := validateOutputPath(path); err != nil {
+		return fmt.Errorf("不安全的文件路径: %w", err)
+	}
+
 	// 创建输出文件
-	file, err := os.Create(path)
+	file, err := os.Create(path) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %w", err)
 	}

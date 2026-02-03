@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pingcap/tidb/pkg/parser/ast"
+	"github.com/pingcap/tidb/pkg/parser/format"
+
 	"github.com/example/ybMigration/internal/checker"
 	"github.com/example/ybMigration/internal/config"
 	inputparser "github.com/example/ybMigration/internal/input-parser"
 	"github.com/example/ybMigration/internal/model"
 	sqlparser "github.com/example/ybMigration/internal/sql-parser"
-	"github.com/pingcap/tidb/pkg/parser/ast"
-	"github.com/pingcap/tidb/pkg/parser/format"
 )
 
 // ============================================================================

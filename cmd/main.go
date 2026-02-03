@@ -10,6 +10,7 @@ import (
 
 	"github.com/example/ybMigration/internal/analyzer"
 	"github.com/example/ybMigration/internal/config"
+	"github.com/example/ybMigration/internal/constants"
 	report "github.com/example/ybMigration/internal/report"
 	sqlparser "github.com/example/ybMigration/internal/sql-parser"
 )
@@ -25,7 +26,6 @@ const (
 // run 是主要的执行函数，可以被测试
 // 返回错误而不是直接退出程序
 func run(absConfigPath, absPath, absReportPath string) error {
-
 	// 验证配置文件存在
 	if _, err := config.ResolveFilePath(absConfigPath, "配置文件"); err != nil {
 		return fmt.Errorf("配置文件验证失败: %w", err)
@@ -164,7 +164,7 @@ func parseFlags() (absConfigPath, absPath, absReportPath string) {
 	}
 
 	// 确保报告目录存在（自动创建）
-	if err := os.MkdirAll(absReportPath, 0755); err != nil {
+	if err := os.MkdirAll(absReportPath, constants.DirPermission); err != nil {
 		fmt.Fprintf(os.Stderr, "错误: 无法创建报告目录 %s: %v\n", absReportPath, err)
 		os.Exit(1)
 	}
@@ -173,5 +173,5 @@ func parseFlags() (absConfigPath, absPath, absReportPath string) {
 	fmt.Printf("✅ 使用配置文件: %s\n", absConfigPath)
 	fmt.Printf("✅ 待分析路径: %s\n", absPath)
 	fmt.Printf("✅ 报告输出目录: %s\n", absReportPath)
-	return
+	return absConfigPath, absPath, absReportPath
 }

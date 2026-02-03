@@ -1,0 +1,80 @@
+# YB Migration GitLab Enterprise Dockerfile
+# 用于内部 GitLab CI/CD 的多阶段构建
+
+# ============================================================================
+# 构建阶段
+# ============================================================================
+FROM golang:1.25.1-alpine AS builder
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装构建依赖
+RUN apk add --no-cache git ca-certificates tzdata
+
+# 复制 go mod 文件
+COPY go.mod go.sum ./
+
+# 下载依赖 (利用 Docker 层缓存)
+RUN go mod download && go mod verify
+
+# 复制源代码
+COPY . .
+
+# 构建应用
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -X main.Version=${CI_COMMIT_TAG:-${CI_COMMIT_SHORT_SHA}} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)' \
+    -o yb-migration ./cmd
+
+# ============================================================================
+# 运行阶段
+# ============================================================================
+FROM alpine:latest
+
+# 安装运行时依赖
+RUN apk --no-cache add ca-certificates tzdata
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+
+# 创建非 root 用户
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# 设置工作目录
+WORKDIR /app
+
+# 从构建阶段复制二进制文件
+COPY --from=builder /app/yb-migration .
+
+# 复制配置文件 (如果存在)
+COPY --from=builder /app/configs ./configs
+
+# 设置权限
+RUN chown -R appuser:appgroup /app
+
+# 切换到非 root 用户
+USER appuser
+
+# 暴露端口
+EXPOSE 8080
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ./yb-migration --version || exit 1
+
+# 设置环境变量
+ENV GIN_MODE=release
+ENV PORT=8080
+
+# 启动命令
+CMD ["./yb-migration"]
+
+# ============================================================================
+# 标签信息
+# ============================================================================
+LABEL maintainer="devops@company.com" \
+      version="${CI_COMMIT_TAG:-latest}" \
+      description="YB Migration - MySQL to YB Database Migration Tool" \
+      source="https://gitlab.company.com/teams/yb-migration" \
+      license="MIT"

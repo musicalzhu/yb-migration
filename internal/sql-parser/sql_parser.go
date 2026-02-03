@@ -8,7 +8,6 @@ import (
 
 	pparser "github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
-
 	// 空白导入 test_driver 是为了兼容 TiDB 的解析器实现。
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 )
@@ -34,7 +33,7 @@ func NewSQLParser() SQLParser {
 	}
 }
 
-// ParseSQL 解析 SQL 语句，返回 AST 节点
+// ParseSQL 解析 SQL 语句，返回 AST 节点。
 // 这是解析阶段，只负责将 SQL 文本转换为 AST
 func (p *sqlParser) ParseSQL(sql string) ([]ast.StmtNode, error) {
 	// 使用 TiDB 的解析器解析 SQL

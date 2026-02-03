@@ -12,9 +12,15 @@ import (
 	"strings"
 )
 
+// 日志解析常量
+const (
+	// MinLogMatches 日志行匹配的最小字段数
+	MinLogMatches = 5
+)
+
 // GeneralLogFileParser 专门用于解析MySQL general log文件
 // 支持从MySQL general log中提取SQL查询语句
-// 注意：此解析器仅处理标准格式的MySQL general log
+// 注意：此解析器仅处理标准格式的MySQL general log。
 type GeneralLogFileParser struct {
 	// 匹配MySQL general log中的行
 	// 格式示例: 2023-12-23T08:00:01.234567Z     1 Query     SELECT * FROM users
@@ -46,7 +52,7 @@ func (p *GeneralLogFileParser) GetNonStandardLines() []string {
 // Parse 解析MySQL general log文件
 // 参数 path 是日志文件的路径
 // 返回值: 提取的SQL语句字符串和可能的错误
-// 注意：不支持目录，请使用 analyzer 的 AnalyzeInput 方法处理目录
+// 注意：不支持目录，请使用 analyzer 的 AnalyzeInput 方法处理目录。
 func (p *GeneralLogFileParser) Parse(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("文件路径不能为空")
@@ -69,7 +75,7 @@ func (p *GeneralLogFileParser) Parse(path string) (string, error) {
 	}
 
 	// 读取文件内容
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("打开文件 %s 失败: %w", path, err)
 	}
@@ -89,10 +95,7 @@ func (p *GeneralLogFileParser) parseGeneralLog(reader io.Reader) (string, error)
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		sql, err := p.parseLogLine(line)
-		if err != nil {
-			return "", err
-		}
+		sql := p.parseLogLine(line)
 		if sql != "" {
 			sqlContent.WriteString(sql)
 			// 添加分号和换行符，确保多条SQL语句正确分隔
@@ -115,19 +118,19 @@ func (p *GeneralLogFileParser) parseGeneralLog(reader io.Reader) (string, error)
 //   - 解析出的SQL语句
 //   - 错误信息
 //     注意：非标准格式的日志行会被记录到 nonStandardLines 中
-func (p *GeneralLogFileParser) parseLogLine(line string) (string, error) {
+func (p *GeneralLogFileParser) parseLogLine(line string) string {
 	// 跳过空行
 	line = strings.TrimSpace(line)
 	if line == "" {
-		return "", nil
+		return ""
 	}
 
 	// 匹配日志行格式
 	matches := p.logLinePattern.FindStringSubmatch(line)
-	if len(matches) < 5 {
+	if len(matches) < MinLogMatches {
 		// 记录非标准格式的日志行
 		p.nonStandardLines = append(p.nonStandardLines, line)
-		return "", nil
+		return ""
 	}
 
 	// 获取命令类型
@@ -137,16 +140,16 @@ func (p *GeneralLogFileParser) parseLogLine(line string) (string, error) {
 	if commandType != "Query" {
 		// 记录非Query类型的日志行
 		p.nonStandardLines = append(p.nonStandardLines, fmt.Sprintf("[Non-Query] %s", line))
-		return "", nil
+		return ""
 	}
 
 	// 提取并清理SQL语句
 	sql := strings.TrimSpace(matches[4])
 	if sql == "" || isIgnoredSQL(sql) {
-		return "", nil
+		return ""
 	}
 
-	return sql, nil
+	return sql
 }
 
 // isLogFile 检查文件是否为日志文件

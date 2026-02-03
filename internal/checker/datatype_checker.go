@@ -3,11 +3,12 @@ package checker
 import (
 	"fmt"
 
-	"github.com/example/ybMigration/internal/config"
-	"github.com/example/ybMigration/internal/model"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
 	"github.com/pingcap/tidb/pkg/parser/types"
+
+	"github.com/example/ybMigration/internal/config"
+	"github.com/example/ybMigration/internal/model"
 )
 
 // DataTypeChecker 数据类型检查器实现
@@ -183,35 +184,61 @@ func (d *DataTypeChecker) checkAlterTable(node *ast.AlterTableStmt) (ast.Node, b
 		alterSpec := spec
 		switch alterSpec.Tp {
 		case ast.AlterTableAddColumns:
-			// 检查新增列的数据类型
-			if alterSpec.NewColumns != nil {
-				for _, col := range alterSpec.NewColumns {
-					if transformedNode, transformed := d.checkColumnType(col); transformed {
-						*col = *transformedNode.(*ast.ColumnDef)
-						hasTransform = true
-					}
-				}
+			if d.processAddColumns(alterSpec) {
+				hasTransform = true
 			}
 
 		case ast.AlterTableModifyColumn:
-			// 检查修改列的数据类型
-			if len(alterSpec.NewColumns) > 0 {
-				if transformedNode, transformed := d.checkColumnType(alterSpec.NewColumns[0]); transformed {
-					*alterSpec.NewColumns[0] = *transformedNode.(*ast.ColumnDef)
-					hasTransform = true
-				}
+			if d.processModifyColumn(alterSpec) {
+				hasTransform = true
 			}
 
 		case ast.AlterTableChangeColumn:
-			// 检查变更列的数据类型
-			if len(alterSpec.NewColumns) > 0 {
-				if transformedNode, transformed := d.checkColumnType(alterSpec.NewColumns[0]); transformed {
-					*alterSpec.NewColumns[0] = *transformedNode.(*ast.ColumnDef)
-					hasTransform = true
-				}
+			if d.processChangeColumn(alterSpec) {
+				hasTransform = true
 			}
 		}
 	}
 
 	return node, hasTransform
+}
+
+// processAddColumns 处理新增列的数据类型检查
+func (d *DataTypeChecker) processAddColumns(spec *ast.AlterTableSpec) bool {
+	hasTransform := false
+	if spec.NewColumns != nil {
+		for _, col := range spec.NewColumns {
+			if d.transformColumn(col) {
+				hasTransform = true
+			}
+		}
+	}
+	return hasTransform
+}
+
+// processModifyColumn 处理修改列的数据类型检查
+func (d *DataTypeChecker) processModifyColumn(spec *ast.AlterTableSpec) bool {
+	if len(spec.NewColumns) > 0 {
+		return d.transformColumn(spec.NewColumns[0])
+	}
+	return false
+}
+
+// processChangeColumn 处理变更列的数据类型检查
+func (d *DataTypeChecker) processChangeColumn(spec *ast.AlterTableSpec) bool {
+	if len(spec.NewColumns) > 0 {
+		return d.transformColumn(spec.NewColumns[0])
+	}
+	return false
+}
+
+// transformColumn 转换单个列的数据类型
+func (d *DataTypeChecker) transformColumn(col *ast.ColumnDef) bool {
+	if transformedNode, transformed := d.checkColumnType(col); transformed {
+		if colDef, ok := transformedNode.(*ast.ColumnDef); ok {
+			*col = *colDef
+			return true
+		}
+	}
+	return false
 }

@@ -6,13 +6,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/example/ybMigration/internal/config"
-	"github.com/example/ybMigration/internal/model"
-	"github.com/example/ybMigration/internal/testutils"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/example/ybMigration/internal/config"
+	"github.com/example/ybMigration/internal/model"
+	"github.com/example/ybMigration/internal/testutils"
 )
 
 // ============================================================================
@@ -260,7 +261,6 @@ func TestDataTypeChecker(t *testing.T) {
 	t.Run("inspect_non_datatype_node", func(t *testing.T) {
 		// 测试非数据类型节点
 		selectStmt := &ast.SelectStmt{}
-
 		node, skip := checker.Inspect(selectStmt)
 
 		// 应该返回原节点，不跳过子节点
@@ -344,13 +344,21 @@ func TestCharsetChecker(t *testing.T) {
 	})
 
 	t.Run("inspect_non_charset_node", func(t *testing.T) {
-		// 测试非字符集相关节点
-		selectStmt := &ast.SelectStmt{}
+		// 测试非字符集相关节点 - 使用 DELETE 语句以区别于 DataTypeChecker
+		deleteStmt := &ast.DeleteStmt{
+			TableRefs: &ast.TableRefsClause{
+				TableRefs: &ast.Join{
+					Left: &ast.TableName{
+						Name: ast.NewCIStr("test_table"),
+					},
+				},
+			},
+		}
 
-		node, skip := checker.Inspect(selectStmt)
+		node, skip := checker.Inspect(deleteStmt)
 
 		// 应该返回原节点，不跳过子节点
-		assert.Equal(t, selectStmt, node)
+		assert.Equal(t, deleteStmt, node)
 		assert.False(t, skip)
 
 		// 不应该收集问题

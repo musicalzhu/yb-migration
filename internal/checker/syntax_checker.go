@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pingcap/tidb/pkg/parser/ast"
+
 	"github.com/example/ybMigration/internal/config"
 	"github.com/example/ybMigration/internal/model"
-	"github.com/pingcap/tidb/pkg/parser/ast"
 )
 
 // SyntaxChecker 语法检查器
@@ -67,66 +68,125 @@ func (s *SyntaxChecker) Inspect(n ast.Node) (w ast.Node, skipChildren bool) {
 //   - ast.Node: 转换后的节点
 //   - bool: 是否有转换发生
 func (s *SyntaxChecker) checkCreateTableSyntax(node *ast.CreateTableStmt) (ast.Node, bool) {
-	rules := s.GetRules()
+	hasTransform := s.checkColumnsSyntax(node.Cols) || s.checkTableOptionsSyntax(node.Options)
+
+	return node, hasTransform
+}
+
+// checkColumnsSyntax 检查列定义中的语法问题
+// 参数:
+//   - columns: 列定义数组
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (s *SyntaxChecker) checkColumnsSyntax(columns []*ast.ColumnDef) bool {
 	hasTransform := false
+	rules := s.GetRules()
 
-	// 检查列定义中的 AUTO_INCREMENT
-	for _, col := range node.Cols {
-		if col.Options != nil {
-			for _, opt := range col.Options {
-				if opt.Tp == ast.ColumnOptionAutoIncrement {
-					rule, hasRule := rules["AUTO_INCREMENT"]
-					if hasRule {
-						// 生成兼容性问题
-						s.AddIssue(model.Issue{
-							Checker: "SyntaxChecker",
-							Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "AUTO_INCREMENT", rule.Description, rule.Then.Target),
-							AutoFix: model.AutoFix{
-								Available: true,
-								Action:    rule.Then.Action,
-								Code:      fmt.Sprintf("%s -> %s", "AUTO_INCREMENT", rule.Then.Target),
-							},
-						})
+	for _, col := range columns {
+		if s.checkColumnAutoIncrement(col, rules) {
+			hasTransform = true
+		}
+	}
+	return hasTransform
+}
 
-						// 执行AST转换
-						transformedNode := s.ApplyTransformation(col, rule)
-						if transformedNode != col {
-							*col = *transformedNode.(*ast.ColumnDef)
-							hasTransform = true
-						}
+// checkColumnAutoIncrement 检查单个列的 AUTO_INCREMENT 选项
+// 参数:
+//   - col: 列定义
+//   - rules: 语法规则
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (s *SyntaxChecker) checkColumnAutoIncrement(col *ast.ColumnDef, rules map[string]config.Rule) bool {
+	if col.Options == nil {
+		return false
+	}
+
+	for _, opt := range col.Options {
+		if opt.Tp == ast.ColumnOptionAutoIncrement {
+			rule, hasRule := rules["AUTO_INCREMENT"]
+			if hasRule {
+				// 生成兼容性问题
+				s.AddIssue(model.Issue{
+					Checker: "SyntaxChecker",
+					Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "AUTO_INCREMENT", rule.Description, rule.Then.Target),
+					AutoFix: model.AutoFix{
+						Available: true,
+						Action:    rule.Then.Action,
+						Code:      fmt.Sprintf("%s -> %s", "AUTO_INCREMENT", rule.Then.Target),
+					},
+				})
+
+				// 执行AST转换
+				transformedNode := s.ApplyTransformation(col, rule)
+				if transformedNode != col {
+					if colDef, ok := transformedNode.(*ast.ColumnDef); ok {
+						*col = *colDef
+						return true
 					}
 				}
 			}
 		}
 	}
+	return false
+}
 
-	// 检查表引擎选项 (MySQL 特有)
-	for _, option := range node.Options {
-		if option.Tp == ast.TableOptionEngine {
-			rule, hasRule := rules["ENGINE"]
-			if hasRule {
-				// 生成兼容性问题
-				s.AddIssue(model.Issue{
-					Checker: "SyntaxChecker",
-					Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "ENGINE", rule.Description, rule.Then.Target),
-					AutoFix: model.AutoFix{
-						Available: true,
-						Action:    rule.Then.Action,
-						Code:      fmt.Sprintf("%s -> %s", "ENGINE", rule.Then.Target),
-					},
-				})
+// checkTableOptionsSyntax 检查表选项中的语法问题
+// 参数:
+//   - options: 表选项数组
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (s *SyntaxChecker) checkTableOptionsSyntax(options []*ast.TableOption) bool {
+	hasTransform := false
+	rules := s.GetRules()
 
-				// 执行AST转换
-				transformedNode := s.ApplyTransformation(option, rule)
-				if transformedNode != option {
-					*option = *transformedNode.(*ast.TableOption)
-					hasTransform = true
-				}
-			}
+	for _, option := range options {
+		if s.checkTableEngineOption(option, rules) {
+			hasTransform = true
 		}
 	}
+	return hasTransform
+}
 
-	return node, hasTransform
+// checkTableEngineOption 检查表引擎选项
+// 参数:
+//   - option: 表选项
+//   - rules: 语法规则
+//
+// 返回值:
+//   - bool: 是否有转换发生
+func (s *SyntaxChecker) checkTableEngineOption(option *ast.TableOption, rules map[string]config.Rule) bool {
+	if option.Tp != ast.TableOptionEngine {
+		return false
+	}
+
+	rule, hasRule := rules["ENGINE"]
+	if !hasRule {
+		return false
+	}
+
+	// 生成兼容性问题
+	s.AddIssue(model.Issue{
+		Checker: "SyntaxChecker",
+		Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "ENGINE", rule.Description, rule.Then.Target),
+		AutoFix: model.AutoFix{
+			Available: true,
+			Action:    rule.Then.Action,
+			Code:      fmt.Sprintf("%s -> %s", "ENGINE", rule.Then.Target),
+		},
+	})
+
+	// 执行AST转换
+	transformedNode := s.ApplyTransformation(option, rule)
+	if transformedNode != option {
+		if tableOption, ok := transformedNode.(*ast.TableOption); ok {
+			*option = *tableOption
+			return true
+		}
+	}
+	return false
 }
 
 // checkTableNameQuotes 检查表名中的反引号并执行转换
@@ -137,36 +197,55 @@ func (s *SyntaxChecker) checkCreateTableSyntax(node *ast.CreateTableStmt) (ast.N
 //   - ast.Node: 转换后的节点
 //   - bool: 是否有转换发生
 func (s *SyntaxChecker) checkTableNameQuotes(node *ast.TableName) (ast.Node, bool) {
-	rules := s.GetRules()
-
 	originalName := node.Name.String()
-	if strings.Contains(originalName, "`") {
-		// 调试：打印所有加载的规则
-		fmt.Printf("DEBUG: Loaded rules: %v\n", rules)
+	return s.checkBacktickQuotes(node, originalName)
+}
 
-		rule, hasRule := rules["`"] // 使用 pattern 作为 key
-		if hasRule {
-			fmt.Printf("DEBUG: Found backtick rule: %v\n", rule)
-			// 生成兼容性问题
-			s.AddIssue(model.Issue{
-				Checker: "SyntaxChecker",
-				Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "反引号", rule.Description, rule.Then.Target),
-				AutoFix: model.AutoFix{
-					Available: true,
-					Action:    rule.Then.Action,
-					Code:      fmt.Sprintf("`%s` -> \"%s\"", originalName, strings.ReplaceAll(originalName, "`", "\"")),
-				},
-			})
+// checkColumnNameQuotes 检查列名中的反引号并执行转换
+// 参数:
+//   - node: 列名节点
+//
+// 返回值:
+//   - ast.Node: 转换后的节点
+//   - bool: 是否有转换发生
+func (s *SyntaxChecker) checkColumnNameQuotes(node *ast.ColumnName) (ast.Node, bool) {
+	originalName := node.Name.String()
+	return s.checkBacktickQuotes(node, originalName)
+}
 
-			// 执行AST转换
-			transformedNode := s.ApplyTransformation(node, rule)
-			return transformedNode, transformedNode != node
-		} else {
-			fmt.Printf("DEBUG: No backtick rule found in rules\n")
-		}
+// checkBacktickQuotes 统一的反引号检查和转换逻辑
+// 参数:
+//   - node: AST节点（TableName或ColumnName）
+//   - originalName: 原始名称
+//
+// 返回值:
+//   - ast.Node: 转换后的节点
+//   - bool: 是否有转换发生
+func (s *SyntaxChecker) checkBacktickQuotes(node ast.Node, originalName string) (ast.Node, bool) {
+	if !strings.Contains(originalName, "`") {
+		return node, false
 	}
 
-	return node, false
+	rules := s.GetRules()
+	rule, hasRule := rules["`"]
+	if !hasRule {
+		return node, false
+	}
+
+	// 生成兼容性问题
+	s.AddIssue(model.Issue{
+		Checker: "SyntaxChecker",
+		Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "反引号", rule.Description, rule.Then.Target),
+		AutoFix: model.AutoFix{
+			Available: true,
+			Action:    rule.Then.Action,
+			Code:      fmt.Sprintf("`%s` -> \"%s\"", originalName, strings.ReplaceAll(originalName, "`", "\"")),
+		},
+	})
+
+	// 执行AST转换
+	transformedNode := s.ApplyTransformation(node, rule)
+	return transformedNode, transformedNode != node
 }
 
 // checkLockTablesSyntax 检查 LOCK TABLES 语法
@@ -198,39 +277,5 @@ func (s *SyntaxChecker) checkUnlockTablesSyntax(node *ast.UnlockTablesStmt) (ast
 		Message: "MySQL UNLOCK TABLES 语法不兼容: UNLOCK TABLES 是 MySQL 特有的表解锁语法，目标数据库可能使用不同的锁定机制或不支持此语法",
 	}
 	s.AddIssue(issue)
-	return node, false
-}
-
-// checkColumnNameQuotes 检查列名中的反引号并执行转换
-// 参数:
-//   - node: 列名节点
-//
-// 返回值:
-//   - ast.Node: 转换后的节点
-//   - bool: 是否有转换发生
-func (s *SyntaxChecker) checkColumnNameQuotes(node *ast.ColumnName) (ast.Node, bool) {
-	rules := s.GetRules()
-
-	originalName := node.Name.String()
-	if strings.Contains(originalName, "`") {
-		rule, hasRule := rules["`"] // 使用 pattern 作为 key
-		if hasRule {
-			// 生成兼容性问题
-			s.AddIssue(model.Issue{
-				Checker: "SyntaxChecker",
-				Message: fmt.Sprintf("语法 %s: %s (建议: %s)", "反引号", rule.Description, rule.Then.Target),
-				AutoFix: model.AutoFix{
-					Available: true,
-					Action:    rule.Then.Action,
-					Code:      fmt.Sprintf("`%s` -> \"%s\"", originalName, strings.ReplaceAll(originalName, "`", "\"")),
-				},
-			})
-
-			// 执行AST转换
-			transformedNode := s.ApplyTransformation(node, rule)
-			return transformedNode, transformedNode != node
-		}
-	}
-
 	return node, false
 }

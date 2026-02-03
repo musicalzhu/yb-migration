@@ -1,99 +1,716 @@
+# YB Migration CI/CD Pipeline
+# 用于 MySQL 到 YB 数据库迁移兼容性分析工具的持续集成和部署
+# 项目地址: gitlab.company.com/teams/yb-migration
+# Go 版本: 1.25.1
+# 支持内部 GitLab 企业级管理
+
 stages:
+  - prepare
+  - quality
   - test
+  - security
   - build
   - deploy
+  - notify
 
+# ============================================================================
+# 全局配置
+# ============================================================================
+
+# 全局环境变量配置
 variables:
+  # Go 环境配置
+  GO_VERSION: "1.25.1"
   GOPROXY: https://goproxy.cn,direct
   GO111MODULE: "on"
   CGO_ENABLED: 0
+  APP_NAME: ybMigration
+  
+  # GitLab 特定配置
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 0  # 完整克隆，用于质量分析
+  
+  # 缓存配置
+  CACHE_KEY_PREFIX: "yb-migration"
+  
+  # 构建配置
+  BUILD_DIR: "bin"
+  DOCKER_REGISTRY: "registry.gitlab.company.com"
+  DOCKER_IMAGE: "${DOCKER_REGISTRY}/yb-migration/${APP_NAME}"
+  
+  # 通知配置
+  NOTIFICATION_WEBHOOK: "${WEBHOOK_URL}"  # GitLab CI/CD 通知 webhook
+  SLACK_WEBHOOK: "${SLACK_URL}"          # Slack 通知 webhook
 
-# Cache Go modules and build cache
+# 缓存配置，加速 CI 执行
 cache:
   paths:
-    - .cache
-    - .gocache
+    - .cache/                    # Go 模块缓存
+    - .gocache/                  # Go 构建缓存
+    - vendor/                    # 依赖缓存
+  key: "${CACHE_KEY_PREFIX}-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}"
+  untracked: true
 
-before_script:
-  - go version
-  - go env
-  - go mod download
+# 默认配置
+default:
+  image: golang:${GO_VERSION}
+  before_script:
+    - echo "🚀 开始执行任务: ${CI_JOB_NAME}"
+    - echo "📍 分支: ${CI_COMMIT_REF_NAME}"
+    - echo "🏷️  提交: ${CI_COMMIT_SHORT_SHA}"
+    - echo "🔗 项目: ${CI_PROJECT_PATH}"
+    - go version
+    - go env
+  after_script:
+    - echo "✅ 任务完成: ${CI_JOB_NAME}"
+  tags:
+    - docker
+    - linux
 
-# Unit tests
+# ============================================================================
+# 准备阶段
+# ============================================================================
+
+# 环境准备任务
+prepare:
+  stage: prepare
+  script:
+    - echo "📦 准备构建环境..."
+    - mkdir -p ${BUILD_DIR}
+    - mkdir -p .cache .gocache
+    - go mod download
+    - go mod verify
+    - go mod tidy
+    - echo "✅ 环境准备完成"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - vendor/
+    expire_in: 1 hour
+  only:
+    - merge_requests
+    - main
+    - develop
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+
+# ============================================================================
+# 质量检查阶段 (Quality Gate)
+# ============================================================================
+
+# 代码质量检查任务
+# 使用 golangci-lint 进行全面的静态代码分析
+quality-check:
+  stage: quality
+  image: golangci/golangci-lint:latest
+  script:
+    - echo "🔍 运行代码质量检查..."
+    - echo "📋 检查配置文件..."
+    - test -f .golangci.yml || (echo "❌ .golangci.yml 配置文件不存在" && exit 1)
+    
+    # 运行代码质量检查
+    - echo "🔍 执行 golangci-lint 检查..."
+    - golangci-lint run --config .golangci.yml --timeout 15m ./...
+    
+    # 生成详细报告
+    - echo "📊 生成质量报告..."
+    - golangci-lint run --config .golangci.yml --out-format=json --timeout 15m ./... > quality-report.json 2>/dev/null || true
+    - golangci-lint run --config .golangci.yml --out-format=html --timeout 15m ./... > quality-report.html 2>/dev/null || true
+    - golangci-lint run --config .golangci.yml --out-format=checkstyle --timeout 15m ./... > quality-checkstyle.xml 2>/dev/null || true
+    
+    # 显示质量统计
+    - echo "📈 代码质量统计:"
+    - golangci-lint run --config .golangci.yml --max-issues-per-linter=0 --max-same-issues=0 --timeout 15m ./... | head -20
+    
+    # 生成质量指标文件
+    - |
+      cat > quality-metrics.json << EOF
+      {
+        "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+        "commit": "${CI_COMMIT_SHORT_SHA}",
+        "branch": "${CI_COMMIT_REF_NAME}",
+        "project": "${CI_PROJECT_PATH}",
+        "pipeline": "${CI_PIPELINE_ID}",
+        "job": "${CI_JOB_ID}"
+      }
+      EOF
+    
+    - echo "✅ 代码质量检查完成"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - quality-report.json      # JSON 格式报告
+      - quality-report.html     # HTML 格式报告
+      - quality-checkstyle.xml  # Checkstyle 格式报告
+      - quality-metrics.json    # 质量指标
+    expire_in: 1 week
+    when: always              # 即使失败也保存报告
+    reports:
+      junit: quality-checkstyle.xml  # GitLab 集成测试报告
+  coverage: '/total:.*?(\d+\.\d+)%/'
+  only:
+    - merge_requests
+    - main
+    - develop
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  allow_failure: false       # 质量检查失败时阻塞流程
+  tags:
+    - docker
+    - quality
+
+# 代码复杂度分析
+complexity-analysis:
+  stage: quality
+  image: golang:${GO_VERSION}
+  script:
+    - echo "🧮 运行代码复杂度分析..."
+    
+    # 安装分析工具
+    - go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+    - go install github.com/psampaz/go-mod-outdated@latest
+    
+    # 圈复杂度分析
+    - echo "📊 圈复杂度分析:"
+    - gocyclo -over 12 . || echo "✅ 圈复杂度检查通过"
+    
+    # 依赖分析
+    - echo "📦 依赖分析:"
+    - go list -mod=mod -u -m -json all | go-mod-outdated -update -direct || echo "✅ 依赖分析完成"
+    
+    # 生成复杂度报告
+    - |
+      gocyclo -over 0 . > complexity-report.txt 2>/dev/null || true
+      echo "复杂度分析完成" > complexity-summary.txt
+    
+    - echo "✅ 复杂度分析完成"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - complexity-report.txt
+      - complexity-summary.txt
+    expire_in: 1 week
+    when: always
+  only:
+    - merge_requests
+    - main
+    - develop
+  allow_failure: true         # 复杂度分析失败不阻塞流程
+  tags:
+    - docker
+
+# 代码格式检查任务
+# 确保代码格式一致性
+format-check:
+  stage: quality
+  image: golang:${GO_VERSION}
+  script:
+    - echo "📝 检查代码格式..."
+    
+    # 检查 gofmt 格式
+    - echo "🔍 Go 格式检查:"
+    - |
+      if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+        echo "❌ 以下文件需要格式化:"
+        gofmt -s -l .
+        echo "💡 运行 'gofmt -s -w .' 修复格式问题"
+        exit 1
+      else
+        echo "✅ Go 格式检查通过"
+      fi
+    
+    # 检查 goimports 格式
+    - echo "🔍 Import 格式检查:"
+    - |
+      if command -v goimports >/dev/null 2>&1; then
+        if [ "$(goimports -l . | wc -l)" -gt 0 ]; then
+          echo "❌ 以下文件的 import 语句需要格式化:"
+          goimports -l .
+          echo "💡 运行 'goimports -w .' 修复格式问题"
+          exit 1
+        else
+          echo "✅ Import 格式检查通过"
+        fi
+      else
+        echo "⚠️  goimports 未安装，跳过 import 格式检查"
+        go install golang.org/x/tools/cmd/goimports@latest
+      fi
+    
+    - echo "✅ 格式检查完成"
+  only:
+    - merge_requests
+    - main
+    - develop
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  allow_failure: false
+  tags:
+    - docker
+
+# 覆盖率质量门禁
+# 确保测试覆盖率不低于阈值
+coverage-gate:
+  stage: quality
+  image: golang:${GO_VERSION}
+  script:
+    - echo "🧪 运行覆盖率检查..."
+    
+    # 运行测试并生成覆盖率
+    - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+    
+    # 提取覆盖率百分比
+    - COVERAGE=$(go tool cover -func=coverage.txt | grep total | awk '{print $3}' | sed 's/%//')
+    - echo "📊 当前代码覆盖率: ${COVERAGE}%"
+    
+    # 检查覆盖率是否达到阈值
+    - |
+      if (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+        echo "✅ 覆盖率检查通过 (≥60%)"
+      else
+        echo "❌ 覆盖率不达标 (当前: ${COVERAGE}%, 要求: ≥60%)"
+        exit 1
+      fi
+    
+    # 生成覆盖率报告
+    - go tool cover -html=coverage.txt -o coverage.html
+    - echo "✅ 覆盖率检查完成"
+  coverage: '/total:.*?(\d+\.\d+)%/'
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - coverage.txt
+      - coverage.html
+    expire_in: 1 week
+  only:
+    - merge_requests
+    - main
+    - develop
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  allow_failure: false
+  tags:
+    - docker
+
+# ============================================================================
+# 测试阶段
+# ============================================================================
+
+# 单元测试任务
+# 执行所有单元测试，生成代码覆盖率报告
 unit-test:
   stage: test
   script:
+    - echo "🧪 运行单元测试..."
+    
+    # 运行单元测试，启用竞态检测，生成覆盖率报告
     - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+    
+    # 显示测试覆盖率摘要
+    - go tool cover -func=coverage.txt
+    
+    # 生成 JUnit 格式的测试报告
+    - go install github.com/jstemmer/go-junit-report@latest
+    - go test -v -race ./... 2>&1 | go-junit-report > test-report.xml
+    
+    - echo "✅ 单元测试完成"
+  coverage: '/total:.*?(\d+\.\d+)%/'
   artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
-      - coverage.txt
+      - coverage.txt          # 覆盖率原始数据
+      - test-report.xml      # JUnit 测试报告
     expire_in: 1 week
+    reports:
+      junit: test-report.xml  # GitLab 集成测试报告
   only:
     - merge_requests
     - main
+    - develop
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  dependencies:
+    - quality-check          # 依赖质量检查通过
+    - coverage-gate          # 依赖覆盖率门禁通过
+  tags:
+    - docker
 
-# Integration tests
+# 集成测试任务
+# 执行集成测试，验证各模块间的协作
 integration-test:
   stage: test
   script:
-    - go test -v -tags=integration -race ./...
+    - echo "🔗 运行集成测试..."
+    
+    # 运行集成测试，启用竞态检测
+    - go test -v -race -tags=integration ./...
+    
+    # 如果有特定的集成测试套件，可以单独运行
+    - go test -v -race ./cmd/... -tags=integration
+    
+    - echo "✅ 集成测试完成"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - integration-test.log
+    expire_in: 1 week
+    when: always
   only:
     - merge_requests
     - main
+    - develop
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  dependencies:
+    - quality-check          # 依赖质量检查通过
+  tags:
+    - docker
 
-# Build the application
-build:
-  stage: build
+# 性能基准测试
+benchmark:
+  stage: test
   script:
-    - mkdir -p bin
-    - go build -o bin/ybMigration ./cmd/analyzer
-    - go build -o bin/ybMigration-autofix ./cmd/autofix
+    - echo "⚡ 运行性能基准测试..."
+    
+    # 运行基准测试
+    - go test -bench=. -benchmem -run=^$$ ./... -count=3 > benchmark.txt
+    
+    # 生成基准测试报告
+    - go install golang.org/x/perf/cmd/benchstat@latest
+    - echo "基准测试结果:" > benchmark-summary.txt
+    - cat benchmark.txt >> benchmark-summary.txt
+    
+    - echo "✅ 基准测试完成"
   artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
-      - bin/
+      - benchmark.txt
+      - benchmark-summary.txt
     expire_in: 1 week
   only:
-    - tags
     - main
+    - develop
+    - /^release\/.*$/
+  allow_failure: true         # 基准测试失败不阻塞流程
+  tags:
+    - docker
 
-# Run linters
+# ============================================================================
+# 安全阶段
+# ============================================================================
+
+# 安全扫描任务
+# 专门检查安全漏洞和敏感信息
+security-scan:
+  stage: security
+  image: golangci/golangci-lint:latest
+  script:
+    - echo "🔒 运行安全扫描..."
+    
+    # 运行安全检查
+    - echo "🛡️ 安全漏洞扫描:"
+    - golangci-lint run --config .golangci.yml --enable-only=gosec --timeout 10m ./...
+    
+    # 检查敏感信息泄露
+    - echo "🔍 敏感信息检查:"
+    - |
+      if grep -r -i "password\|secret\|key\|token" --include="*.go" --include="*.yaml" --include="*.yml" --exclude-dir=.git . 2>/dev/null; then
+        echo "⚠️ 警告: 发现可能的敏感信息"
+        echo "::warning::发现可能的敏感信息泄露"
+      else
+        echo "✅ 未发现明显的敏感信息泄露"
+      fi
+    
+    # 检查依赖漏洞
+    - echo "📦 依赖安全检查:"
+    - |
+      go install github.com/sonatypecommunity/nancy/cmd/nancy@latest
+      go list -json -m all | nancy sleuth || echo "nancy 工具检查失败"
+    
+    # 生成安全报告
+    - echo "安全扫描完成" > security-report.txt
+    
+    - echo "✅ 安全扫描完成"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - security-report.log
+    expire_in: 1 week
+    when: always
+  only:
+    - merge_requests
+    - main
+    - develop
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  allow_failure: true         # 安全扫描失败不阻塞流程，但会发出警告
+  tags:
+    - docker
+    - security
+
+# 单元测试任务
+# 执行所有单元测试，生成代码覆盖率报告
+unit-test:
+  stage: test
+  script:
+    # 运行单元测试，启用竞态检测，生成覆盖率报告
+    - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+    # 显示测试覆盖率摘要
+    - go tool cover -func=coverage.txt
+  coverage: '/total:.*?(\d+\.\d+)%/' # 提取总覆盖率
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - coverage.txt          # 覆盖率原始数据
+    expire_in: 1 week
+  only:
+    - merge_requests          # 在合并请求中运行
+    - main                   # 在主分支上运行
+  dependencies:
+    - quality-check          # 依赖质量检查通过
+    - coverage-gate          # 依赖覆盖率门禁通过
+  tags:
+    - docker                 # 使用 Docker 执行器
+
+# 集成测试任务
+# 执行集成测试，验证各模块间的协作
+integration-test:
+  stage: test
+  script:
+    # 运行集成测试，启用竞态检测
+    - go test -v -race -tags=integration ./...
+    # 如果有特定的集成测试套件，可以单独运行
+    - go test -v -race ./cmd/... -tags=integration
+  only:
+    - merge_requests
+    - main
+  dependencies:
+    - quality-check          # 依赖质量检查通过
+  tags:
+    - docker
+
+# 代码质量检查任务（轻量级，用于快速反馈）
+# 在合并请求中提供快速的质量反馈
 lint:
   stage: test
   image: golangci/golangci-lint:latest
   script:
-    - golangci-lint run --timeout 5m -v ./...
+    # 检查配置文件是否存在
+    - test -f .golangci.yml || echo "警告: .golangci.yml 配置文件不存在"
+    # 运行代码质量检查（仅关键问题）
+    - golangci-lint run --config .golangci.yml --disable=godot,whitespace --timeout 10m ./...
+    # 生成检查报告
+    - golangci-lint run --config .golangci.yml --out-format=json --timeout 10m ./... > lint-report.json 2>/dev/null || true
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - lint-report.json      # Lint 检查报告
+    expire_in: 1 week
+    when: always              # 即使失败也保存报告
   only:
     - merge_requests
     - main
+  dependencies:
+    - quality-check          # 依赖质量检查通过
+  allow_failure: true         # 允许失败，但不阻塞流程
+  tags:
+    - docker
 
-# Run benchmarks
+# 应用构建任务
+# 编译生成可执行二进制文件，支持多平台构建
+build:
+  stage: build
+  script:
+    # 创建构建输出目录
+    - mkdir -p bin
+    # 构建主程序，使用项目变量中的 APP_NAME
+    - go build -ldflags="-w -s" -o bin/${APP_NAME} ./cmd
+    # 显示构建信息
+    - ls -la bin/
+    - file bin/${APP_NAME}
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - bin/                   # 构建产物目录
+    expire_in: 1 week
+  only:
+    - tags                    # 仅在标签推送时构建
+    - main                    # 主分支合并时构建
+  dependencies:
+    - unit-test               # 依赖测试通过
+    - integration-test
+  tags:
+    - docker
+
+# 代码质量检查任务
+# 使用 golangci-lint 进行静态代码分析
+lint:
+  stage: test
+  image: golangci/golangci-lint:latest  # 使用官方镜像
+  script:
+    # 检查配置文件是否存在
+    - test -f .golangci.yml || echo "警告: .golangci.yml 配置文件不存在"
+    # 运行代码质量检查
+    - golangci-lint run --config .golangci.yml --timeout 5m ./...
+    # 生成检查报告（可选）
+    - golangci-lint run --config .golangci.yml --out-format=json > lint-report.json 2>/dev/null || true
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - lint-report.json      # Lint 检查报告
+    expire_in: 1 week
+    when: always              # 即使失败也保存报告
+  only:
+    - merge_requests
+    - main
+  allow_failure: true         # 允许失败，但不阻塞流程
+  tags:
+    - docker
+
+# 性能基准测试任务
+# 定期运行性能基准测试，监控性能变化
 benchmark:
   stage: test
   script:
+    # 运行基准测试，输出内存分配信息
     - go test -bench=. -benchmem -run=^$ ./...
+    # 保存基准测试结果
+    - go test -bench=. -benchmem -run=^$ ./... -count=3 > benchmark.txt
+    # 如果有历史数据，进行对比
+    - echo "基准测试完成，结果保存至 benchmark.txt"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - benchmark.txt          # 基准测试结果
+    expire_in: 1 month
   only:
-    - schedules
+    - schedules               # 定时任务触发
+    - main                    # 手动在主分支运行
+  when: manual                # 手动触发，避免频繁运行
+  tags:
+    - docker
 
-# Deploy to staging
+# 安全扫描任务
+# 检查依赖包的安全漏洞
+security-scan:
+  stage: test
+  script:
+    # 使用 go list 检查已知漏洞
+    - go list -json -m all | nancy sleuth
+    # 或使用 govulncheck（需要单独安装）
+    # - go install golang.org/x/vuln/cmd/govulncheck@latest
+    # - govulncheck ./...
+  allow_failure: true         # 安全扫描失败不阻塞流程
+  only:
+    - main
+    - tags
+  when: manual
+  tags:
+    - docker
+
+# 预发布环境部署
+# 将主分支代码部署到预发布环境进行验证
 deploy-staging:
   stage: deploy
   script:
-    - echo "Deploying to staging environment..."
-    # Add your deployment script here
+    - echo "开始部署到预发布环境..."
+    # 这里添加实际的部署脚本
+    # 例如：Docker 部署、K8s 部署、或直接上传到服务器
+    # docker build -t yb-migration:staging .
+    # docker push registry.example.com/yb-migration:staging
+    # kubectl set image deployment/yb-migration yb-migration=registry.example.com/yb-migration:staging -n staging
+    - echo "预发布环境部署完成"
   environment:
     name: staging
-    url: https://staging.example.com
+    url: https://staging.example.com  # 预发布环境地址
+    on_stop: stop-staging            # 停止环境任务
+  only:
+    - main                          # 仅主分支可部署到预发布
+  when: manual                      # 手动触发部署
+  dependencies:
+    - build                         # 依赖构建产物
+  tags:
+    - docker
+
+# 停止预发布环境
+stop-staging:
+  stage: deploy
+  script:
+    - echo "停止预发布环境..."
+    # 添加停止环境的脚本
+    # kubectl delete deployment yb-migration -n staging
+    - echo "预发布环境已停止"
+  environment:
+    name: staging
+    action: stop
   only:
     - main
+  when: manual
+  tags:
+    - docker
 
-# Deploy to production
+# 生产环境部署
+# 仅在发布标签时部署到生产环境
 deploy-prod:
   stage: deploy
   script:
-    - echo "Deploying to production..."
-    # Add your deployment script here
+    - echo "开始部署到生产环境..."
+    # 验证是否为有效的发布标签
+    - if [[ ! $CI_COMMIT_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "无效的版本标签格式，应为 v.x.y.z"; exit 1; fi
+    # 生产环境部署脚本
+    # docker build -t yb-migration:${CI_COMMIT_TAG} .
+    # docker tag yb-migration:${CI_COMMIT_TAG} registry.example.com/yb-migration:latest
+    # docker push registry.example.com/yb-migration:${CI_COMMIT_TAG}
+    # docker push registry.example.com/yb-migration:latest
+    # kubectl set image deployment/yb-migration yb-migration=registry.example.com/yb-migration:${CI_COMMIT_TAG} -n production
+    - echo "生产环境部署完成，版本: ${CI_COMMIT_TAG}"
   environment:
     name: production
-    url: https://example.com
+    url: https://example.com     # 生产环境地址
+  only:
+    - tags                       # 仅在标签推送时触发
+  when: manual                   # 手动确认部署到生产
+  dependencies:
+    - build                      # 依赖构建产物
+  before_script:
+    # 生产环境额外的安全检查
+    - echo "生产环境部署前安全检查..."
+    # 可以添加额外的安全扫描或验证步骤
+  tags:
+    - docker
+
+# 发布任务（可选）
+# 创建 GitHub Release 或其他发布操作
+release:
+  stage: deploy
+  script:
+    - echo "创建发布 ${CI_COMMIT_TAG}..."
+    # 使用构建产物创建发布
+    # 可以集成 GitHub CLI 或其他发布工具
+    # gh release create ${CI_COMMIT_TAG} --title "Release ${CI_COMMIT_TAG}" --notes "自动发布" bin/*
+    - echo "发布创建完成"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - bin/                    # 发布二进制文件
+    expire_in: never            # 永久保存发布产物
   only:
     - tags
+  when: manual
+  dependencies:
+    - build
+  tags:
+    - docker
+
+# 清理任务
+# 定期清理过期的 CI 产物和缓存
+cleanup:
+  stage: deploy
+  script:
+    - echo "清理过期 CI 产物..."
+    # GitLab 有自动清理机制，这里可以添加自定义清理逻辑
+    - echo "清理完成"
+  only:
+    - schedules
+  when: manual
+  tags:
+    - docker

@@ -60,7 +60,9 @@ INSERT INTO logs (msg) VALUES ('test');`,
 			// 创建临时文件
 			tmpFile, err := os.CreateTemp("", "test_*.sql")
 			require.NoError(t, err)
-			defer os.Remove(tmpFile.Name())
+			defer func() {
+				_ = os.Remove(tmpFile.Name())
+			}()
 
 			// 写入测试内容
 			_, err = tmpFile.WriteString(tt.sqlContent)
@@ -106,7 +108,9 @@ func TestSQLFileParser_Parse_InvalidExtension(t *testing.T) {
 	// 创建一个非.sql文件
 	tmpFile, err := os.CreateTemp("", "test_*.txt")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		_ = os.Remove(tmpFile.Name())
+	}()
 	require.NoError(t, tmpFile.Close())
 
 	_, err = parser.Parse(tmpFile.Name())
