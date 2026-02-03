@@ -53,7 +53,7 @@ rules:
     enabled: true
     severity: "error"
     parameters:
-      target_database: "yugabytedb"
+      target_database: "target_db"
       strict_mode: true
 
   # 数据类型检查
@@ -73,7 +73,7 @@ rules:
     severity: "error"
     parameters:
       mysql_version: "8.0"
-      yugabytedb_version: "2.0"
+      target_db_version: "2.0"
 
   # 字符集检查
   - name: "charset_incompatibility"

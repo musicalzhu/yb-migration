@@ -274,7 +274,7 @@ func (c *DatatypeChecker) Check(stmt model.SQLStatement) []model.Issue {
                 Checker:    c.GetName(),
                 Category:   c.GetCategory(),
                 Severity:   "warning",
-                Message:    fmt.Sprintf("数据类型 %s 在 YugaByte DB 中不兼容", column.Type),
+                Message:    fmt.Sprintf("数据类型 %s 在目标数据库中不兼容", column.Type),
                 LineNumber: column.LineNumber,
                 Column:     column.Column,
                 Suggestion: fmt.Sprintf("建议使用 %s 替代 %s", replacement, column.Type),
