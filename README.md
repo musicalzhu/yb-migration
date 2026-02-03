@@ -49,10 +49,17 @@ yb-migration/
 ├── README.md              # 项目文档
 ├── docs/                  # 项目文档
 │   ├── API.md             # API 文档
-│   ├── ADR/               # 架构决策记录
+│   ├── TESTING.md          # 测试指南
 │   ├── DEVELOPMENT.md     # 开发者指南
 │   ├── WORKFLOW.md        # 开发工作流程
-│   └── TESTING.md         # 测试指南
+│   ├── adr/               # 架构决策记录
+│   ├── reports/           # 项目报告
+│   │   ├── CODE_REVIEW_REPORT.md
+│   │   └── PROJECT_STATS.md
+│   └── guides/            # 配置指南
+│       ├── Quality-Gate-Guide.md
+│       ├── GitLab-Community-Guide.md
+│       └── golangci-config-review.md
 └── .gitlab-ci.yml         # CI/CD 配置
 ```
 
@@ -433,8 +440,10 @@ func TestNewChecker_Check(t *testing.T) {
 - **[API 文档](docs/API.md)**: 详细的 API 接口文档
 - **[开发者指南](docs/DEVELOPMENT.md)**: 完整的开发指南和最佳实践
 - **[开发工作流程](docs/WORKFLOW.md)**: 详细的开发流程和 CI/CD 配置
-- **[架构决策记录](docs/adr/)**: 重要的架构决策和设计选择
 - **[测试指南](docs/TESTING.md)**: 测试策略和最佳实践
+- **[架构决策记录](docs/adr/)**: 重要的架构决策和设计选择
+- **[项目报告](docs/reports/)**: 项目统计和代码审查报告
+- **[配置指南](docs/guides/)**: CI/CD 配置和质量门禁指南
 6. **提交更改**
    ```bash
    git commit -m "feat: add new feature"
