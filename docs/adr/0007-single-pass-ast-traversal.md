@@ -45,263 +45,167 @@
 ### 访问者模式设计
 
 ```go
-// ASTVisitor 访问者接口
-type ASTVisitor interface {
-    Enter(node ast.Node) (ast.Node, bool)
-    Leave(node ast.Node) (ast.Node, bool)
-}
-
-// CheckerAdapter 检查器适配器
-type CheckerAdapter struct {
-    checker    Checker
-    nodeTypes  []ast.NodeType
-    issues     []Issue
-    transforms []Transformation
-}
-
-func NewCheckerAdapter(checker Checker, nodeTypes []ast.NodeType) *CheckerAdapter {
-    return &CheckerAdapter{
-        checker:   checker,
-        nodeTypes: nodeTypes,
-    }
-}
-
-func (ca *CheckerAdapter) Enter(node ast.Node) (ast.Node, bool) {
-    // 检查是否为感兴趣的节点类型
-    if !ca.isInterestedNodeType(node) {
-        return node, false
-    }
-    
-    // 转换 AST 节点为内部结构
-    stmt := ca.convertNodeToStatement(node)
-    
-    // 执行检查
-    issues := ca.checker.Check(stmt)
-    ca.issues = append(ca.issues, issues...)
-    
-    // 生成转换建议
-    transforms := ca.checker.GenerateTransforms(stmt)
-    ca.transforms = append(ca.transforms, transforms...)
-    
-    return node, false
-}
-
-func (ca *CheckerAdapter) Leave(node ast.Node) (ast.Node, bool) {
-    return node, false
-}
-
-func (ca *CheckerAdapter) isInterestedNodeType(node ast.Node) bool {
-    for _, nodeType := range ca.nodeTypes {
-        if node.Type() == nodeType {
-            return true
-        }
-    }
-    return false
-}
-```
-
-### 单次遍历执行器
-
-```go
-// SinglePassExecutor 单次遍历执行器
-type SinglePassExecutor struct {
-    adapters []*CheckerAdapter
-    result   *AnalysisResult
-}
-
-func NewSinglePassExecutor(checkers []Checker) *SinglePassExecutor {
-    var adapters []*CheckerAdapter
-    
-    for _, checker := range checkers {
-        nodeTypes := checker.GetInterestedNodeTypes()
-        adapter := NewCheckerAdapter(checker, nodeTypes)
-        adapters = append(adapters, adapter)
-    }
-    
-    return &SinglePassExecutor{
-        adapters: adapters,
-        result:   &AnalysisResult{},
-    }
-}
-
-func (spe *SinglePassExecutor) Execute(stmtNode ast.StmtNode) (*AnalysisResult, error) {
-    // 重置结果
-    spe.result = &AnalysisResult{
-        InputPath: "", // 由调用者设置
-        GeneratedAt: time.Now(),
-    }
-    
-    // 创建复合访问者
-    visitor := &CompositeVisitor{
-        adapters: spe.adapters,
-    }
-    
-    // 单次遍历 AST
-    _, err := stmtNode.Accept(visitor)
-    if err != nil {
-        return nil, fmt.Errorf("AST 遍历失败: %w", err)
-    }
-    
-    // 聚合所有结果
-    spe.aggregateResults()
-    
-    return spe.result, nil
-}
-
-// CompositeVisitor 复合访问者
-type CompositeVisitor struct {
-    adapters []*CheckerAdapter
-}
-
-func (cv *CompositeVisitor) Enter(node ast.Node) (ast.Node, bool) {
-    // 通知所有适配器
-    for _, adapter := range cv.adapters {
-        adapter.Enter(node)
-    }
-    return node, false
-}
-
-func (cv *CompositeVisitor) Leave(node ast.Node) (ast.Node, bool) {
-    // 通知所有适配器
-    for _, adapter := range cv.adapters {
-        adapter.Leave(node)
-    }
-    return node, false
-}
-```
-
-### 检查器接口扩展
-
-```go
-// Checker 扩展接口
+// Checker 检查器接口（实际实现）
 type Checker interface {
-    Check(stmt SQLStatement) []Issue
-    GenerateTransforms(stmt SQLStatement) []Transformation
-    GetInterestedNodeTypes() []ast.NodeType
-    GetName() string
-    GetCategory() string
-    GetDescription() string
+    Name() string
+    Inspect(node ast.Node) (ast.Node, bool)
+    Issues() []model.Issue
+    Reset()
 }
 
-// FunctionChecker 实现
-type FunctionChecker struct {
-    name        string
-    nodeTypes   []ast.NodeType
-    replacements map[string]string
+// visitor 实现 ast.Visitor 接口（实际实现）
+type visitor struct {
+    checkers     []Checker
+    skipChildren bool
 }
 
-func NewFunctionChecker() *FunctionChecker {
-    return &FunctionChecker{
-        name: "function_incompatibility",
-        nodeTypes: []ast.NodeType{
-            ast.AstFuncCallExpr,
-            ast.AstSelectStmt,
-            ast.AstInsertStmt,
-        },
-        replacements: map[string]string{
-            "NOW":               "CURRENT_TIMESTAMP",
-            "CURDATE":           "CURRENT_DATE",
-            "CURTIME":           "CURRENT_TIME",
-            "UNIX_TIMESTAMP":    "EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)",
-        },
+func (v *visitor) Enter(node ast.Node) (ast.Node, bool) {
+    if node == nil || v.skipChildren {
+        return node, true
+    }
+
+    var skip bool
+    // 遍历所有检查器处理当前节点
+    for _, checker := range v.checkers {
+        if n, s := checker.Inspect(node); n != nil || s {
+            if n != nil {
+                node = n // 替换节点
+            }
+            skip = skip || s // 任一检查器要求跳过子节点则跳过
+        }
+    }
+
+    v.skipChildren = skip
+    return node, skip
+}
+
+func (v *visitor) Leave(node ast.Node) (ast.Node, bool) {
+    return node, true
+}
+
+// CheckResult 检查和转换结果
+type CheckResult struct {
+    Issues           []model.Issue  // 发现的问题
+    TransformedStmts []ast.StmtNode // 转换后的语句
+}
+
+// Check 检查和转换SQL语句（一次遍历完成所有工作）
+func Check(stmts []ast.StmtNode, checkers ...Checker) CheckResult {
+    // 初始化所有检查器
+    for _, checker := range checkers {
+        checker.Reset()
+    }
+
+    // 创建访问者
+    v := &visitor{checkers: checkers}
+
+    // 一次遍历AST，同时完成分析和转换
+    transformedStmts := make([]ast.StmtNode, len(stmts))
+    for i, stmt := range stmts {
+        if stmt == nil {
+            continue
+        }
+
+        v.Reset()
+        newNode, _ := stmt.Accept(v)
+        if newNode != nil {
+            if stmtNode, ok := newNode.(ast.StmtNode); ok {
+                transformedStmts[i] = stmtNode
+            } else {
+                transformedStmts[i] = stmt
+            }
+        } else {
+            transformedStmts[i] = stmt
+        }
+    }
+
+    // 收集所有检查器发现的问题
+    var allIssues []model.Issue
+    for _, checker := range checkers {
+        if issues := checker.Issues(); len(issues) > 0 {
+            allIssues = append(allIssues, issues...)
+        }
+    }
+
+    return CheckResult{
+        Issues:           allIssues,
+        TransformedStmts: transformedStmts,
     }
 }
+```
 
-func (fc *FunctionChecker) GetInterestedNodeTypes() []ast.NodeType {
-    return fc.nodeTypes
+### 检查器实现示例
+
+```go
+// RuleChecker 规则检查器实现（实际实现）
+type RuleChecker struct {
+    name     string                 // 检查器名称
+    category string                 // 规则类别
+    rules    map[string]config.Rule // 规则映射
+    issues   []model.Issue          // 发现的问题列表
+    mu       sync.RWMutex           // 读写锁保护
 }
 
-func (fc *FunctionChecker) GenerateTransforms(stmt SQLStatement) []Transformation {
-    var transforms []Transformation
-    
-    for _, funcCall := range stmt.Functions {
-        if replacement, exists := fc.replacements[funcCall.Name]; exists {
-            transforms = append(transforms, Transformation{
-                Original:    fmt.Sprintf("%s()", funcCall.Name),
-                Transformed: fmt.Sprintf("%s()", replacement),
-                Reason:      fmt.Sprintf("函数 %s 在目标数据库中不兼容", funcCall.Name),
-                LineNumber:  funcCall.LineNumber,
-                Column:      funcCall.Column,
-            })
+func (r *RuleChecker) Inspect(node ast.Node) (ast.Node, bool) {
+    // 根据规则检查当前节点
+    for _, rule := range r.rules {
+        if r.matchesRule(node, rule) {
+            // 应用转换
+            if rule.Then.Action != "" {
+                node = r.ApplyTransformation(node, rule)
+            }
+            
+            // 记录问题
+            issue := model.Issue{
+                Checker: r.name,
+                Message: fmt.Sprintf("发现兼容性问题: %s", rule.When.Pattern),
+                Line:    r.getLineNumber(node),
+            }
+            r.AddIssue(issue)
         }
     }
     
-    return transforms
+    return node, false
+}
+
+func (r *RuleChecker) ApplyTransformation(node ast.Node, rule config.Rule) ast.Node {
+    switch rule.Then.Action {
+    case "replace_function":
+        return r.replaceFunction(node, rule)
+    case "replace_type":
+        return r.replaceType(node, rule)
+    // ... 其他转换类型
+    default:
+        return node
+    }
 }
 ```
 
 ### 性能优化
 
+实际实现中，性能优化主要体现在：
+
+1. **单次遍历**: 避免多次遍历 AST，显著提升性能
+2. **并发安全**: 使用读写锁保护检查器状态
+3. **内存优化**: 重用 visitor 实例，减少内存分配
+4. **错误恢复**: 检查器异常不会中断整个遍历过程
+
 ```go
-// 优化后的执行器
-type OptimizedExecutor struct {
-    adapters     []*CheckerAdapter
-    nodeTypeMap  map[ast.NodeType][]*CheckerAdapter
-    result       *AnalysisResult
-}
-
-func NewOptimizedExecutor(checkers []Checker) *OptimizedExecutor {
-    adapters := make([]*CheckerAdapter, 0, len(checkers))
-    nodeTypeMap := make(map[ast.NodeType][]*CheckerAdapter)
-    
-    for _, checker := range checkers {
-        nodeTypes := checker.GetInterestedNodeTypes()
-        adapter := NewCheckerAdapter(checker, nodeTypes)
-        adapters = append(adapters, adapter)
-        
-        // 构建节点类型到适配器的映射
-        for _, nodeType := range nodeTypes {
-            nodeTypeMap[nodeType] = append(nodeTypeMap[nodeType], adapter)
-        }
+// 性能优化要点
+func (v *visitor) Enter(node ast.Node) (ast.Node, bool) {
+    // 添加 defer 保护，防止检查器中的 panic
+    for _, checker := range v.checkers {
+        func() {
+            defer func() {
+                if r := recover(); r != nil {
+                    log.Printf("检查器 %v 处理节点 %T 时发生 panic: %v",
+                        getCheckerName(checker), node, r)
+                }
+            }()
+            // 检查器逻辑
+        }()
     }
-    
-    return &OptimizedExecutor{
-        adapters:    adapters,
-        nodeTypeMap: nodeTypeMap,
-    }
-}
-
-func (oe *OptimizedExecutor) Execute(stmtNode ast.StmtNode) (*AnalysisResult, error) {
-    oe.result = &AnalysisResult{
-        GeneratedAt: time.Now(),
-    }
-    
-    // 使用优化的访问者
-    visitor := &OptimizedVisitor{
-        nodeTypeMap: oe.nodeTypeMap,
-    }
-    
-    _, err := stmtNode.Accept(visitor)
-    if err != nil {
-        return nil, fmt.Errorf("AST 遍历失败: %w", err)
-    }
-    
-    oe.aggregateResults()
-    return oe.result, nil
-}
-
-// OptimizedVisitor 优化的访问者
-type OptimizedVisitor struct {
-    nodeTypeMap map[ast.NodeType][]*CheckerAdapter
-}
-
-func (ov *OptimizedVisitor) Enter(node ast.Node) (ast.Node, bool) {
-    // 只调用感兴趣的适配器
-    if adapters, exists := ov.nodeTypeMap[node.Type()]; exists {
-        for _, adapter := range adapters {
-            adapter.Enter(node)
-        }
-    }
-    return node, false
-}
-
-func (ov *OptimizedVisitor) Leave(node ast.Node) (ast.Node, bool) {
-    if adapters, exists := ov.nodeTypeMap[node.Type()]; exists {
-        for _, adapter := range adapters {
-            adapter.Leave(node)
-        }
-    }
-    return node, false
+    return node, skip
 }
 ```
 

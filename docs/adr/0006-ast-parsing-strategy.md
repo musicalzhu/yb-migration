@@ -99,35 +99,28 @@ func (p *TiDBParser) convertASTToStatement(stmtNode ast.StmtNode) SQLStatement {
 ### 数据结构设计
 
 ```go
-// SQLStatement 表示解析后的 SQL 语句
-type SQLStatement struct {
-    Type         string                 `json:"type"`
-    Content      string                 `json:"content"`
-    AST          ast.StmtNode           `json:"-"`
-    Columns      []Column               `json:"columns,omitempty"`
-    Tables       []Table                `json:"tables,omitempty"`
-    Functions    []FunctionCall         `json:"functions,omitempty"`
-    Constraints  []Constraint           `json:"constraints,omitempty"`
-    LineNumber   int                    `json:"line_number"`
-    Column       int                    `json:"column"`
+// AnalysisResult 表示分析结果
+type AnalysisResult struct {
+    SQL            string  `json:"sql"`                       // 原始 SQL 语句
+    Issues         []Issue `json:"issues"`                    // 发现的问题列表
+    Source         string  `json:"source,omitempty"`          // SQL 来源
+    TransformedSQL string  `json:"transformed_sql,omitempty"` // 转换后的SQL语句
 }
 
-// Column 表示列定义
-type Column struct {
-    Name       string `json:"name"`
-    Type       string `json:"type"`
-    Nullable   bool   `json:"nullable"`
-    Default    string `json:"default,omitempty"`
-    LineNumber int    `json:"line_number"`
-    Column     int    `json:"column"`
+// Issue 表示兼容性问题
+type Issue struct {
+    Checker string  `json:"checker"`
+    Message string  `json:"message"`
+    File    string  `json:"file,omitempty"`
+    Line    int     `json:"line,omitempty"`
+    AutoFix AutoFix `json:"autofix,omitempty"`
 }
 
-// FunctionCall 表示函数调用
-type FunctionCall struct {
-    Name       string   `json:"name"`
-    Arguments  []string `json:"arguments"`
-    LineNumber int      `json:"line_number"`
-    Column     int      `json:"column"`
+// AutoFix 表示自动修复的元数据
+type AutoFix struct {
+    Available bool   `json:"available"`
+    Action    string `json:"action,omitempty"`
+    Code      string `json:"code,omitempty"`
 }
 ```
 
